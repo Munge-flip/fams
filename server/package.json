@@ -1,0 +1,24 @@
+{
+  "name": "fams-server",
+  "version": "1.0.0",
+  "description": "FAMS Express API",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "node --watch index.js",
+    "check": "node --check index.js && node --check app.js && node --check config/db.js && node --check controllers/authController.js && node --check middleware/auth.js && node --check middleware/errorHandler.js && node --check models/User.js && node --check routes/authRoutes.js && node --check utils/token.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "bcryptjs": "^3.0.3",
+    "cookie-parser": "^1.4.7",
+    "cors": "^2.8.6",
+    "dotenv": "^17.4.2",
+    "express": "^5.2.1",
+    "jsonwebtoken": "^9.0.3",
+    "mongoose": "^9.9.2"
+  }
+}
