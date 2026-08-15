@@ -2,6 +2,9 @@ const express = require('express');
 const cors = require('cors');
 const cookieParser = require('cookie-parser');
 const authRoutes = require('./routes/authRoutes');
+const programRoutes = require('./routes/programRoutes');
+const applicationRoutes = require('./routes/applicationRoutes');
+const documentRoutes = require('./routes/documentRoutes');
 const errorHandler = require('./middleware/errorHandler');
 
 const app = express();
@@ -16,6 +19,9 @@ app.get('/api/health', (req, res) => {
 });
 
 app.use('/api/auth', authRoutes);
+app.use('/api/programs', programRoutes);
+app.use('/api/applications', applicationRoutes);
+app.use('/api/documents', documentRoutes);
 
 app.use((req, res) => {
   res.status(404).json({ success: false, message: 'Route not found.' });
