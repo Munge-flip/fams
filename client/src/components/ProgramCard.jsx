@@ -1,3 +1,5 @@
+import { Link } from 'react-router-dom';
+
 const categoryLabels = {
   scholarship: 'Scholarship',
   barangay: 'Barangay aid',
@@ -27,14 +29,7 @@ export default function ProgramCard({ program }) {
       </div>
       <div className="mt-4 flex items-center justify-between gap-3">
         <p className="text-sm font-semibold text-black">{program.slots} available slots</p>
-        <button
-          className="min-h-11 rounded-lg border border-gray-300 px-3 py-2 text-sm font-semibold text-gray-500 disabled:cursor-not-allowed"
-          type="button"
-          disabled
-          title="Applications open in Day 5"
-        >
-          Apply now
-        </button>
+        <Link className="inline-flex min-h-11 items-center rounded-lg bg-black px-3 py-2 text-sm font-semibold text-white" to={`/apply?program=${program._id}`}>Apply now</Link>
       </div>
     </article>
   );

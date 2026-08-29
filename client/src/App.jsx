@@ -4,6 +4,9 @@ import Login from './pages/auth/Login';
 import Register from './pages/auth/Register';
 import Dashboard from './pages/dashboard/Dashboard';
 import Programs from './pages/programs/Programs';
+import Apply from './pages/apply/Apply';
+import Applications from './pages/applications/Applications';
+import ApplicationDetail from './pages/applications/ApplicationDetail';
 
 function DayFourPlaceholder({ title, detail }) {
   return (
@@ -27,6 +30,9 @@ export default function App() {
       <Route element={<ProtectedRoute />}>
         <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/programs" element={<Programs />} />
+        <Route path="/apply" element={<Apply />} />
+        <Route path="/applications" element={<Applications />} />
+        <Route path="/applications/:id" element={<ApplicationDetail />} />
       </Route>
       <Route element={<ProtectedRoute adminOnly />}>
         <Route path="/admin" element={<DayFourPlaceholder title="Admin area" detail="You are signed in as an administrator. Admin dashboard features are scheduled for Day 6." />} />
