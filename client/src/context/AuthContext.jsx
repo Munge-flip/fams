@@ -60,10 +60,9 @@ export function AuthProvider({ children }) {
   const logout = useCallback(async () => {
     try {
       await logoutUser();
+      setUser(null);
     } catch (error) {
       throw new Error(getErrorMessage(error, 'Unable to sign out.'));
-    } finally {
-      setUser(null);
     }
   }, []);
 

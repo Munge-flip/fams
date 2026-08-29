@@ -9,6 +9,7 @@ export default function StudentBottomNav() {
         <NavLink className={linkClasses} to="/dashboard">Dashboard</NavLink>
         <NavLink className={linkClasses} to="/programs">Programs</NavLink>
         <NavLink className={linkClasses} to="/applications">Applications</NavLink>
+        <NavLink className={linkClasses} to="/profile">Profile</NavLink>
       </div>
     </nav>
   );
