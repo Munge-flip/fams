@@ -6,6 +6,21 @@ export const getPrograms = async () => {
 };
 
 export const getProgramById = async (id) => {
-  const response = await getPrograms();
-  return response.data.find((program) => program._id === id) || null;
+  const response = await api.get(`/programs/${id}`);
+  return response.data;
+};
+
+export const createProgram = async (program) => {
+  const response = await api.post('/programs', program);
+  return response.data;
+};
+
+export const updateProgram = async (id, program) => {
+  const response = await api.put(`/programs/${id}`, program);
+  return response.data;
+};
+
+export const deleteProgram = async (id) => {
+  const response = await api.delete(`/programs/${id}`);
+  return response.data;
 };

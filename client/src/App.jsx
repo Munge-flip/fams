@@ -10,6 +10,7 @@ import Applications from './pages/applications/Applications';
 import ApplicationDetail from './pages/applications/ApplicationDetail';
 import Profile from './pages/profile/Profile';
 import AdminDashboard from './pages/admin/AdminDashboard';
+import AdminPrograms from './pages/admin/AdminPrograms';
 import AdminSectionPlaceholder from './pages/admin/AdminSectionPlaceholder';
 
 export default function App() {
@@ -30,7 +31,7 @@ export default function App() {
       <Route element={<ProtectedRoute adminOnly />}>
         <Route path="/admin" element={<AdminLayout />}>
           <Route index element={<AdminDashboard />} />
-          <Route path="programs" element={<AdminSectionPlaceholder title="Programs" />} />
+          <Route path="programs" element={<AdminPrograms />} />
           <Route path="applications" element={<AdminSectionPlaceholder title="Applications" />} />
           <Route path="account" element={<AdminSectionPlaceholder title="Account" />} />
           <Route path="*" element={<Navigate to="/admin" replace />} />
