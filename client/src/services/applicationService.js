@@ -19,3 +19,8 @@ export const cancelApplication = async (id) => {
   const response = await api.delete(`/applications/${id}`);
   return response.data;
 };
+
+export const updateApplicationStatus = async (id, payload) => {
+  const response = await api.put(`/applications/${id}/status`, payload);
+  return response.data;
+};
