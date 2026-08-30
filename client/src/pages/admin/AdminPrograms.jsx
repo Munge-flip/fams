@@ -15,6 +15,11 @@ const emptyForm = {
   deadline: '',
   category: 'scholarship',
   status: 'active',
+  releaseDate: '',
+  releaseTimeStart: '',
+  releaseTimeEnd: '',
+  releaseLocation: '',
+  releaseInstructions: '',
 };
 
 const categoryLabels = {
@@ -41,6 +46,11 @@ const toFormValues = (program) => ({
   deadline: toDateInput(program.deadline),
   category: program.category || 'scholarship',
   status: program.status || 'active',
+  releaseDate: toDateInput(program.releaseDetails?.date),
+  releaseTimeStart: program.releaseDetails?.timeStart || '',
+  releaseTimeEnd: program.releaseDetails?.timeEnd || '',
+  releaseLocation: program.releaseDetails?.location || '',
+  releaseInstructions: program.releaseDetails?.instructions || '',
 });
 
 function validateForm(form, includeStatus) {
@@ -53,6 +63,15 @@ function validateForm(form, includeStatus) {
   if (!form.deadline || Number.isNaN(new Date(form.deadline).getTime())) return 'Deadline must be a valid date.';
   if (!Object.hasOwn(categoryLabels, form.category)) return 'Select a valid category.';
   if (includeStatus && !['active', 'closed'].includes(form.status)) return 'Select a valid status.';
+
+  const releaseFilled = [form.releaseDate, form.releaseTimeStart, form.releaseTimeEnd, form.releaseLocation, form.releaseInstructions].some((value) => String(value || '').trim());
+  if (releaseFilled) {
+    if (!form.releaseDate || Number.isNaN(new Date(form.releaseDate).getTime())) return 'Release date must be a valid date.';
+    if (!form.releaseTimeStart || !/^\d{2}:\d{2}$/.test(form.releaseTimeStart)) return 'Release start time must be a valid time (HH:MM).';
+    if (!form.releaseTimeEnd || !/^\d{2}:\d{2}$/.test(form.releaseTimeEnd)) return 'Release end time must be a valid time (HH:MM).';
+    if (form.releaseTimeEnd < form.releaseTimeStart) return 'Release end time cannot be earlier than the start time.';
+    if (!form.releaseLocation.trim()) return 'Release location is required.';
+  }
 
   return '';
 }
@@ -108,6 +127,34 @@ function ProgramForm({ mode, form, formError, submitting, onCancel, onChange, on
             </select>
           </label>
         )}
+        <div className="lg:col-span-2 mt-2 border-t border-gray-200 pt-5">
+          <h3 className="text-base font-bold text-black">Release schedule</h3>
+          <p className="mt-1 text-sm text-gray-600">Set the cash assistance release schedule once for this program. Applications that have no application-level schedule will use this schedule.</p>
+          <div className="mt-4 grid gap-5 sm:grid-cols-2">
+            <label className="block" htmlFor="program-release-date">
+              <span className="text-sm font-semibold text-gray-800">Release date</span>
+              <input className="mt-2 block min-h-11 w-full rounded-lg border border-gray-300 px-3 text-sm outline-none focus:border-black focus:ring-2 focus:ring-black/10" id="program-release-date" name="releaseDate" type="date" value={form.releaseDate} onChange={onChange} disabled={submitting} />
+            </label>
+            <div className="grid grid-cols-2 gap-3">
+              <label className="block" htmlFor="program-release-start">
+                <span className="text-sm font-semibold text-gray-800">Start time</span>
+                <input className="mt-2 block min-h-11 w-full rounded-lg border border-gray-300 px-3 text-sm outline-none focus:border-black focus:ring-2 focus:ring-black/10" id="program-release-start" name="releaseTimeStart" type="time" value={form.releaseTimeStart} onChange={onChange} disabled={submitting} />
+              </label>
+              <label className="block" htmlFor="program-release-end">
+                <span className="text-sm font-semibold text-gray-800">End time</span>
+                <input className="mt-2 block min-h-11 w-full rounded-lg border border-gray-300 px-3 text-sm outline-none focus:border-black focus:ring-2 focus:ring-black/10" id="program-release-end" name="releaseTimeEnd" type="time" value={form.releaseTimeEnd} onChange={onChange} disabled={submitting} />
+              </label>
+            </div>
+            <label className="block" htmlFor="program-release-location">
+              <span className="text-sm font-semibold text-gray-800">Release location</span>
+              <input className="mt-2 block min-h-11 w-full rounded-lg border border-gray-300 px-3 text-sm outline-none focus:border-black focus:ring-2 focus:ring-black/10" id="program-release-location" name="releaseLocation" value={form.releaseLocation} onChange={onChange} disabled={submitting} placeholder="e.g. Municipal Hall" />
+            </label>
+            <label className="block sm:col-span-2" htmlFor="program-release-instructions">
+              <span className="text-sm font-semibold text-gray-800">Instructions</span>
+              <textarea className="mt-2 block min-h-24 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-black focus:ring-2 focus:ring-black/10" id="program-release-instructions" name="releaseInstructions" value={form.releaseInstructions} onChange={onChange} disabled={submitting} placeholder="Optional instructions for beneficiaries" />
+            </label>
+          </div>
+        </div>
         <div className="flex items-end lg:col-span-2">
           <button className="min-h-11 rounded-lg bg-black px-5 text-sm font-bold text-white disabled:cursor-not-allowed disabled:opacity-60" type="submit" disabled={submitting}>
             {submitting ? (isCreating ? 'Creating…' : 'Saving…') : (isCreating ? 'Create program' : 'Save changes')}
@@ -208,6 +255,19 @@ export default function AdminPrograms() {
     };
 
     if (isCreating) payload.status = form.status;
+
+    const releaseFilled = [form.releaseDate, form.releaseTimeStart, form.releaseTimeEnd, form.releaseLocation, form.releaseInstructions].some((value) => String(value || '').trim());
+    if (releaseFilled) {
+      payload.releaseDetails = {
+        date: form.releaseDate,
+        timeStart: form.releaseTimeStart,
+        timeEnd: form.releaseTimeEnd,
+        location: form.releaseLocation.trim(),
+        instructions: form.releaseInstructions.trim(),
+      };
+    } else if (!isCreating) {
+      payload.releaseDetails = null;
+    }
 
     try {
       setSubmitting(true);

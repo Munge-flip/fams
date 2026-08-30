@@ -10,6 +10,13 @@ const aidProgramSchema = new mongoose.Schema({
   status: { type: String, enum: ['active', 'closed'] },
   createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
   createdAt: { type: Date, default: Date.now },
+  releaseDetails: {
+    date: Date,
+    timeStart: String,
+    timeEnd: String,
+    location: String,
+    instructions: String,
+  },
 });
 
 module.exports = mongoose.model('AidProgram', aidProgramSchema);

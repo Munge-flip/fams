@@ -52,17 +52,21 @@ export default function ApplicationDetail() {
  {['approved', 'cash_released'].includes(application.status) && (
    <section className="mt-5 rounded-2xl border border-blue-200 bg-blue-50 p-5 shadow-sm">
      <h2 className="text-lg font-bold text-blue-900">{application.status === 'cash_released' ? 'Cash assistance released' : 'Cash assistance scheduled'}</h2>
-     {application.releaseDetails?.date ? (
-       <div className="mt-4 text-sm text-blue-900 space-y-3">
-         <p><strong>Amount:</strong> ₱{application.releaseDetails.amount}</p>
-         <p><strong>Date:</strong> {new Date(application.releaseDetails.date).toLocaleDateString()}</p>
-         <p><strong>Time:</strong> {application.releaseDetails.timeStart} - {application.releaseDetails.timeEnd}</p>
-         <p><strong>Location:</strong> {application.releaseDetails.location}</p>
-         {application.releaseDetails.instructions && <p><strong>Instructions:</strong> {application.releaseDetails.instructions}</p>}
-       </div>
-     ) : (
-       <p className="mt-3 text-sm text-blue-800">Your application is approved, but release details are not yet available.</p>
-     )}
+     {(() => {
+       const schedule = application.releaseDetails?.date ? application.releaseDetails : application.program?.releaseDetails;
+       if (schedule?.date) {
+         return (
+           <div className="mt-4 space-y-3 text-sm text-blue-900">
+             {Number(application.releaseDetails?.amount) > 0 && <p><strong>Amount:</strong> ₱{application.releaseDetails.amount}</p>}
+             <p><strong>Date:</strong> {new Date(schedule.date).toLocaleDateString()}</p>
+             <p><strong>Time:</strong> {schedule.timeStart} - {schedule.timeEnd}</p>
+             <p><strong>Location:</strong> {schedule.location}</p>
+             {schedule.instructions && <p><strong>Instructions:</strong> {schedule.instructions}</p>}
+           </div>
+         );
+       }
+       return <p className="mt-3 text-sm text-blue-800">Your application is approved, but release details are not yet available.</p>;
+     })()}
    </section>
  )}
 

@@ -3,9 +3,46 @@ const Application = require('../models/Application');
 const asyncHandler = require('../utils/asyncHandler');
 const { isValidDate, isValidObjectId } = require('../utils/validation');
 
-const programFields = ['title', 'description', 'eligibility', 'slots', 'deadline', 'category', 'status'];
+const programFields = ['title', 'description', 'eligibility', 'slots', 'deadline', 'category', 'status', 'releaseDetails'];
 const categories = ['scholarship', 'barangay', 'emergency'];
 const statuses = ['active', 'closed'];
+const releaseDetailsFields = ['date', 'timeStart', 'timeEnd', 'location', 'instructions'];
+const timePattern = /^\d{2}:\d{2}$/;
+
+const validateReleaseDetails = (releaseDetails) => {
+  if (releaseDetails === null || releaseDetails === undefined) {
+    return null;
+  }
+  if (typeof releaseDetails !== 'object' || Array.isArray(releaseDetails)) {
+    return 'releaseDetails must be an object.';
+  }
+
+  const unexpectedField = Object.keys(releaseDetails).find((field) => !releaseDetailsFields.includes(field));
+  if (unexpectedField) {
+    return `Unexpected releaseDetails field: ${unexpectedField}.`;
+  }
+
+  if (!isValidDate(releaseDetails.date)) {
+    return 'Release date must be a valid date.';
+  }
+  if (typeof releaseDetails.timeStart !== 'string' || !timePattern.test(releaseDetails.timeStart)) {
+    return 'Release start time must be a valid time (HH:MM).';
+  }
+  if (typeof releaseDetails.timeEnd !== 'string' || !timePattern.test(releaseDetails.timeEnd)) {
+    return 'Release end time must be a valid time (HH:MM).';
+  }
+  if (releaseDetails.timeEnd < releaseDetails.timeStart) {
+    return 'Release end time cannot be earlier than the start time.';
+  }
+  if (typeof releaseDetails.location !== 'string' || !releaseDetails.location.trim()) {
+    return 'Release location must be a non-empty string.';
+  }
+  if (releaseDetails.instructions !== undefined && typeof releaseDetails.instructions !== 'string') {
+    return 'Release instructions must be a string when provided.';
+  }
+
+  return null;
+};
 
 const validateProgram = (body, partial = false) => {
   if (!body || typeof body !== 'object' || Array.isArray(body)) {
@@ -43,6 +80,13 @@ const validateProgram = (body, partial = false) => {
     return 'status must be active or closed.';
   }
 
+  if (body.releaseDetails !== undefined) {
+    const releaseDetailsError = validateReleaseDetails(body.releaseDetails);
+    if (releaseDetailsError) {
+      return releaseDetailsError;
+    }
+  }
+
   return null;
 };
 
@@ -57,6 +101,23 @@ const normalizeProgramFields = (body) => {
 
   if (normalized.deadline !== undefined) {
     normalized.deadline = new Date(normalized.deadline);
+  }
+
+  if (normalized.releaseDetails !== undefined && normalized.releaseDetails !== null) {
+    const release = normalized.releaseDetails;
+    const hasSchedule = Boolean(release.date) || Boolean(String(release.timeStart || '').trim()) || Boolean(String(release.timeEnd || '').trim()) || Boolean(String(release.location || '').trim()) || Boolean(String(release.instructions || '').trim());
+
+    if (!hasSchedule) {
+      delete normalized.releaseDetails;
+    } else {
+      normalized.releaseDetails = {
+        date: new Date(release.date),
+        timeStart: String(release.timeStart).trim(),
+        timeEnd: String(release.timeEnd).trim(),
+        location: String(release.location).trim(),
+        instructions: release.instructions !== undefined ? String(release.instructions).trim() : '',
+      };
+    }
   }
 
   return normalized;

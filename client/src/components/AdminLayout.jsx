@@ -6,6 +6,7 @@ const navigation = [
   { label: 'Dashboard', to: '/admin', end: true },
   { label: 'Programs', to: '/admin/programs' },
   { label: 'Applications', to: '/admin/applications' },
+  { label: 'Users', to: '/admin/users' },
   { label: 'Account', to: '/admin/account' },
 ];
 

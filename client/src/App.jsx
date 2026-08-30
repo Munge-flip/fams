@@ -14,6 +14,8 @@ import AdminDashboard from './pages/admin/AdminDashboard';
 import AdminPrograms from './pages/admin/AdminPrograms';
 import AdminApplications from './pages/admin/AdminApplications';
 import AdminApplicationDetail from './pages/admin/AdminApplicationDetail';
+import AdminUsers from './pages/admin/AdminUsers';
+import AdminUserDetail from './pages/admin/AdminUserDetail';
 import AdminSectionPlaceholder from './pages/admin/AdminSectionPlaceholder';
 
 export default function App() {
@@ -39,6 +41,8 @@ export default function App() {
           <Route path="programs" element={<AdminPrograms />} />
           <Route path="applications" element={<AdminApplications />} />
           <Route path="applications/:id" element={<AdminApplicationDetail />} />
+          <Route path="users" element={<AdminUsers />} />
+          <Route path="users/:id" element={<AdminUserDetail />} />
           <Route path="account" element={<AdminSectionPlaceholder title="Account" />} />
           <Route path="*" element={<Navigate to="/admin" replace />} />
         </Route>

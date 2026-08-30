@@ -69,20 +69,23 @@ export default function Dashboard() {
           {user?.verificationStatus === 'needs_correction' && <Link to="/verification-profile" className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800 block">Your profile needs correction. Click here to view remarks and edit.</Link>}
           {user?.verificationStatus === 'verified' && <div className="rounded-xl border border-green-200 bg-green-50 p-4 text-sm text-green-800">Your profile has been verified.</div>}
 
-          {applications.filter(a => a.status === 'approved' && a.releaseDetails?.date).map(app => (
-            <div key={app._id} className="rounded-xl border border-blue-200 bg-blue-50 p-5">
-              <h3 className="text-lg font-bold text-blue-900">Cash assistance release</h3>
-              <p className="mt-1 text-sm text-blue-800">Program: {app.program?.title}</p>
-              <p className="mt-2 text-lg font-bold text-blue-900">₱{app.releaseDetails.amount}</p>
-              <div className="mt-3 grid grid-cols-2 gap-3 text-sm text-blue-800">
-                <p><strong>Date:</strong> {new Date(app.releaseDetails.date).toLocaleDateString()}</p>
-                <p><strong>Time:</strong> {app.releaseDetails.timeStart} - {app.releaseDetails.timeEnd}</p>
-                <p className="col-span-2"><strong>Location:</strong> {app.releaseDetails.location}</p>
+          {applications.filter(a => a.status === 'approved' && (a.releaseDetails?.date || a.program?.releaseDetails?.date)).map(app => {
+            const schedule = app.releaseDetails?.date ? app.releaseDetails : app.program?.releaseDetails;
+            return (
+              <div key={app._id} className="rounded-xl border border-blue-200 bg-blue-50 p-5">
+                <h3 className="text-lg font-bold text-blue-900">Cash assistance release</h3>
+                <p className="mt-1 text-sm text-blue-800">Program: {app.program?.title}</p>
+                {Number(app.releaseDetails?.amount) > 0 && <p className="mt-2 text-lg font-bold text-blue-900">₱{app.releaseDetails.amount}</p>}
+                <div className="mt-3 grid grid-cols-2 gap-3 text-sm text-blue-800">
+                  <p><strong>Date:</strong> {new Date(schedule.date).toLocaleDateString()}</p>
+                  <p><strong>Time:</strong> {schedule.timeStart} - {schedule.timeEnd}</p>
+                  <p className="col-span-2"><strong>Location:</strong> {schedule.location}</p>
+                </div>
+                {schedule.instructions && <p className="mt-3 text-sm text-blue-800 border-t border-blue-200 pt-3"><strong>Instructions:</strong> {schedule.instructions}</p>}
               </div>
-              {app.releaseDetails.instructions && <p className="mt-3 text-sm text-blue-800 border-t border-blue-200 pt-3"><strong>Instructions:</strong> {app.releaseDetails.instructions}</p>}
-            </div>
-          ))}
-          {applications.filter(a => a.status === 'approved' && !a.releaseDetails?.date).map(app => (
+            );
+          })}
+          {applications.filter(a => a.status === 'approved' && !(a.releaseDetails?.date || a.program?.releaseDetails?.date)).map(app => (
             <div key={app._id} className="rounded-xl border border-gray-200 bg-white p-5 text-sm text-gray-600">
                Your application for {app.program?.title} has been approved. Release details will appear here once scheduled.
             </div>
