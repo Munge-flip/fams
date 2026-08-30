@@ -34,9 +34,16 @@ const validateRegistration = (body) => {
     return 'A valid email address is required.';
   }
 
-  if (typeof body.password !== 'string' || body.password.length < 8) {
+  if (typeof body.password !== 'string') {
+    return 'Password must be a string.';
+  }
+  if (body.password.length < 8) {
     return 'Password must be at least 8 characters.';
   }
+  if (!/[A-Z]/.test(body.password)) return 'Password must contain at least one uppercase letter.';
+  if (!/[a-z]/.test(body.password)) return 'Password must contain at least one lowercase letter.';
+  if (!/[0-9]/.test(body.password)) return 'Password must contain at least one number.';
+  if (!/[^A-Za-z0-9]/.test(body.password)) return 'Password must contain at least one special character.';
 
   if (!['student', 'resident'].includes(body.role)) {
     return 'Role must be student or resident.';
