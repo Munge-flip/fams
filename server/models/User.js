@@ -5,8 +5,35 @@ const userSchema = new mongoose.Schema({
   email: { type: String, unique: true },
   password: { type: String, select: false },
   role: { type: String, enum: ['student', 'resident', 'admin'] },
-  verificationStatus: { type: String, enum: ['pending', 'verified', 'needs_correction'], default: 'pending' },
+  verificationStatus: { type: String, enum: ['incomplete', 'pending', 'verified', 'needs_correction'], default: 'incomplete' },
   verificationRemarks: { type: String, default: '' },
+  dateOfBirth: Date,
+  address: String,
+  school: String,
+  father: {
+    fullName: String,
+    dob: Date,
+    contact: String,
+    occupation: String,
+    employmentStatus: { type: String, enum: ['employed', 'unemployed', 'working_abroad', 'unknown', 'deceased', 'na'] },
+    monthlyIncomeRange: String
+  },
+  mother: {
+    fullName: String,
+    dob: Date,
+    contact: String,
+    occupation: String,
+    employmentStatus: { type: String, enum: ['employed', 'unemployed', 'working_abroad', 'unknown', 'deceased', 'na'] },
+    monthlyIncomeRange: String
+  },
+  household: {
+    memberCount: Number,
+    dependentsCount: Number,
+    currentlyStudyingCount: Number,
+    monthlyIncomeRange: String,
+    primaryIncomeSource: String,
+    secondaryIncomeSource: String
+  },
   studentID: String,
   course: String,
   yearLevel: Number,

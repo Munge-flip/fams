@@ -1,4 +1,5 @@
 import { Navigate, Route, Routes } from 'react-router-dom';
+import VerificationProfile from './pages/profile/VerificationProfile';
 import { ProtectedRoute, PublicOnlyRoute } from './components/RouteGuards';
 import AdminLayout from './components/AdminLayout';
 import Login from './pages/auth/Login';
@@ -29,6 +30,8 @@ export default function App() {
         <Route path="/applications" element={<Applications />} />
         <Route path="/applications/:id" element={<ApplicationDetail />} />
         <Route path="/profile" element={<Profile />} />
+        <Route path="/verification-profile" element={<VerificationProfile />} />
+
       </Route>
       <Route element={<ProtectedRoute adminOnly />}>
         <Route path="/admin" element={<AdminLayout />}>

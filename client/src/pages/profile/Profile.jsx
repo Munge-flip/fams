@@ -72,7 +72,12 @@ export default function Profile() {
 
   return (
     <main className="min-h-screen bg-gray-50 pb-24">
-      <div className="mx-auto w-full max-w-2xl px-5 py-7 sm:px-8">
+      <div className="mx-auto w-full max-w-3xl px-5 py-7 sm:px-8">
+        <div className="mb-8 flex flex-col gap-5">
+          {user?.verificationStatus === 'pending' && <div className="rounded-xl border border-yellow-200 bg-yellow-50 p-4 text-sm text-yellow-800">Your profile is awaiting verification.</div>}
+          {user?.verificationStatus === 'needs_correction' && <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800">Your profile needs correction. {user.verificationRemarks && <span className="block mt-1">Remark: {user.verificationRemarks}</span>} <span className="block mt-1 font-semibold">Editing and saving this profile will submit it for re-verification.</span></div>}
+          {user?.verificationStatus === 'verified' && <div className="rounded-xl border border-green-200 bg-green-50 p-4 text-sm text-green-800">Your profile has been verified.</div>}
+        </div>
         <p className="text-sm font-semibold tracking-[0.2em] text-gray-600">FAMS</p>
         <h1 className="mt-3 text-3xl font-bold tracking-tight text-black">Profile</h1>
         <p className="mt-2 text-sm leading-6 text-gray-600">Your account information and session settings.</p>

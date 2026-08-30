@@ -152,10 +152,139 @@ const updateProfile = asyncHandler(async (req, res) => {
 
   if (user.verificationStatus === 'needs_correction') {
     user.verificationStatus = 'pending';
+    user.verificationRemarks = '';
   }
 
 
+});
+
+const verificationProfileFields = [
+  'name', 'dateOfBirth', 'contactNo', 'address', 'barangay',
+  'studentID', 'course', 'yearLevel', 'school', 'email',
+  'father', 'mother', 'household',
+];
+
+const parentKeys = ['fullName', 'dob', 'contact', 'occupation', 'employmentStatus', 'monthlyIncomeRange'];
+const householdKeys = ['memberCount', 'dependentsCount', 'currentlyStudyingCount', 'monthlyIncomeRange', 'primaryIncomeSource', 'secondaryIncomeSource'];
+const employmentStatuses = ['employed', 'unemployed', 'working_abroad', 'unknown', 'deceased', 'na'];
+const incomeRanges = ['Below ₱10,000', '₱10,000–₱19,999', '₱20,000–₱29,999', '₱30,000–₱39,999', '₱40,000 or more'];
+const contactPattern = /^[+]?[\d\s()-]{7,15}$/;
+
+const isNotFutureDate = (value) => {
+  if (typeof value !== 'string' && !(value instanceof Date)) return false;
+  const date = new Date(value);
+  return !Number.isNaN(date.getTime()) && date.getTime() <= Date.now();
+};
+
+const validateVerificationPayload = (body) => {
+  if (!body || typeof body !== 'object' || Array.isArray(body)) {
+    return 'A JSON object is required.';
+  }
+
+  const unexpectedField = Object.keys(body).find((field) => !verificationProfileFields.includes(field));
+  if (unexpectedField) {
+    return `Unexpected field: ${unexpectedField}.`;
+  }
+
+  const required = ['name', 'dateOfBirth', 'contactNo', 'address', 'barangay', 'studentID', 'course', 'yearLevel', 'school'];
+  const missing = required.find((field) => !String(body[field] ?? '').trim());
+  if (missing) {
+    return 'Please provide all required personal and student information.';
+  }
+
+  if (!isNotFutureDate(body.dateOfBirth)) {
+    return 'Date of birth must be a valid date and cannot be in the future.';
+  }
+
+  if (!Number.isInteger(Number(body.yearLevel)) || Number(body.yearLevel) < 1) {
+    return 'Year level must be a positive whole number.';
+  }
+
+  if (!contactPattern.test(String(body.contactNo).trim())) {
+    return 'Contact number looks invalid. Use digits only, optionally starting with +63.';
+  }
+
+  ['father', 'mother'].forEach((parentKey) => {
+    const parent = body[parentKey];
+    if (parent === undefined) return;
+    if (!parent || typeof parent !== 'object' || Array.isArray(parent)) {
+      throw new Error(`${parentKey} must be an object.`);
+    }
+    const invalidKey = Object.keys(parent).find((key) => !parentKeys.includes(key));
+    if (invalidKey) {
+      throw new Error(`Unexpected field: ${parentKey}.${invalidKey}.`);
+    }
+    if (parent.employmentStatus !== undefined && !employmentStatuses.includes(parent.employmentStatus)) {
+      throw new Error(`Invalid employment status for ${parentKey}.`);
+    }
+    if (parent.dob !== undefined && parent.dob !== null && parent.dob !== '' && !isNotFutureDate(parent.dob)) {
+      throw new Error(`${parentKey}.dob must be a valid date and cannot be in the future.`);
+    }
+    if (parent.monthlyIncomeRange !== undefined && parent.monthlyIncomeRange !== '' && !incomeRanges.includes(parent.monthlyIncomeRange)) {
+      throw new Error(`Invalid income range for ${parentKey}.`);
+    }
+  });
+
+  const household = body.household;
+  if (household !== undefined) {
+    if (!household || typeof household !== 'object' || Array.isArray(household)) {
+      throw new Error('household must be an object.');
+    }
+    const invalidKey = Object.keys(household).find((key) => !householdKeys.includes(key));
+    if (invalidKey) {
+      throw new Error(`Unexpected field: household.${invalidKey}.`);
+    }
+    if (household.memberCount !== undefined && (!Number.isInteger(Number(household.memberCount)) || Number(household.memberCount) < 1)) {
+      throw new Error('Household member count must be a positive whole number.');
+    }
+    ['dependentsCount', 'currentlyStudyingCount'].forEach((field) => {
+      if (household[field] !== undefined && (!Number.isInteger(Number(household[field])) || Number(household[field]) < 0)) {
+        throw new Error(`${field} must be a non-negative whole number.`);
+      }
+    });
+    if (household.monthlyIncomeRange !== undefined && household.monthlyIncomeRange !== '' && !incomeRanges.includes(household.monthlyIncomeRange)) {
+      throw new Error('Invalid household income range.');
+    }
+  }
+
+  return null;
+};
+
+const submitVerificationProfile = asyncHandler(async (req, res) => {
+  const user = req.user;
+
+  let validationError;
+  try {
+    validationError = validateVerificationPayload(req.body);
+  } catch (error) {
+    return res.status(400).json({ success: false, message: error.message });
+  }
+  if (validationError) {
+    return res.status(400).json({ success: false, message: validationError });
+  }
+
+  const { name, dateOfBirth, contactNo, address, barangay, studentID, course, yearLevel, school, father, mother, household } = req.body;
+
+  user.name = String(name).trim();
+  user.dateOfBirth = dateOfBirth;
+  user.contactNo = String(contactNo).trim();
+  user.address = String(address).trim();
+  user.barangay = String(barangay).trim();
+  user.studentID = String(studentID).trim();
+  user.course = String(course).trim();
+  user.yearLevel = Number(yearLevel);
+  user.school = String(school).trim();
+  user.father = father || {};
+  user.mother = mother || {};
+  user.household = household || {};
+
+  if (user.verificationStatus === 'incomplete' || user.verificationStatus === 'needs_correction') {
+    user.verificationStatus = 'pending';
+    user.verificationRemarks = '';
+  }
+
+  await user.save();
   res.status(200).json({ success: true, data: toSafeUser(user) });
 });
 
-module.exports = { register, login, logout, me, updateProfile };
+module.exports = { register, login, logout, me, updateProfile, submitVerificationProfile };

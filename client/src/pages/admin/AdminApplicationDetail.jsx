@@ -25,6 +25,13 @@ const statusLabel = (status) => ({
   cash_released: 'Cash released',
 }[status] || status);
 
+const verificationStatusLabel = (status) => ({
+  incomplete: 'Incomplete',
+  pending: 'Pending',
+  verified: 'Verified',
+  needs_correction: 'Needs correction',
+}[status] || status || 'Not submitted');
+
 const transitions = {
   submitted: [{ status: 'under_review', label: 'Mark under review' }],
   under_review: [{ status: 'approved', label: 'Approve' }, { status: 'denied', label: 'Deny' }],
@@ -66,6 +73,10 @@ export default function AdminApplicationDetail() {
   }, [application]);
 
   const handleVerify = async () => {
+    if (verification.status === 'needs_correction' && !String(verification.remarks || '').trim()) {
+      setError('Please provide a reason for requesting correction.');
+      return;
+    }
     try {
       setIsProcessing(true);
       setError('');
@@ -177,6 +188,13 @@ export default function AdminApplicationDetail() {
       </section>
       <section className="mt-5 rounded-xl border border-gray-200 bg-white p-5 shadow-sm sm:p-6" aria-labelledby="verification-heading">
         <h2 className="text-lg font-bold text-black" id="verification-heading">Beneficiary Verification</h2>
+        <p className="mt-1 text-sm text-gray-600">This verifies the beneficiary's profile information. It does not approve or deny this application.</p>
+        {applicant.verificationStatus && (
+          <div className="mt-4 space-y-1 rounded-lg bg-gray-50 p-3 text-sm">
+            <p><span className="font-semibold text-gray-500">Current profile verification status:</span> <span className="font-semibold text-gray-800">{verificationStatusLabel(applicant.verificationStatus)}</span></p>
+            {applicant.verificationRemarks && <p><span className="font-semibold text-gray-500">Current administrator remarks:</span> <span className="text-gray-800">{applicant.verificationRemarks}</span></p>}
+          </div>
+        )}
         <div className="mt-4 space-y-3">
           <select className="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm" value={verification.status} onChange={(e) => setVerification(v => ({...v, status: e.target.value}))}>
             <option value="pending">Pending</option>

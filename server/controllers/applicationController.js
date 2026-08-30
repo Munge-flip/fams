@@ -1,5 +1,6 @@
 const AidProgram = require('../models/AidProgram');
 const Application = require('../models/Application');
+const User = require('../models/User');
 const asyncHandler = require('../utils/asyncHandler');
 const { isPlainObject, isValidDate, isValidObjectId } = require('../utils/validation');
 
@@ -195,11 +196,16 @@ const verifyApplication = asyncHandler(async (req, res) => {
   if (!['pending', 'verified', 'needs_correction'].includes(status)) {
     return res.status(400).json({ success: false, message: 'Invalid verification status.' });
   }
+  if (status === 'needs_correction' && (typeof remarks !== 'string' || !remarks.trim())) {
+    return res.status(400).json({ success: false, message: 'Remarks are required when requesting profile correction.' });
+  }
   const application = await Application.findById(req.params.id);
   if (!application) return res.status(404).json({ success: false, message: 'Application not found.' });
+  if (!application.applicant) return res.status(400).json({ success: false, message: 'This application has no linked beneficiary.' });
   const user = await User.findById(application.applicant);
+  if (!user) return res.status(404).json({ success: false, message: 'The linked beneficiary account could not be found.' });
   user.verificationStatus = status;
-  user.verificationRemarks = remarks || '';
+  user.verificationRemarks = typeof remarks === 'string' ? remarks.trim() : '';
   await user.save();
   res.status(200).json({ success: true, data: user });
 });

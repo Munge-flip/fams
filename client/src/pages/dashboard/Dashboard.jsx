@@ -64,8 +64,9 @@ export default function Dashboard() {
           <span className="rounded-full border border-gray-300 px-3 py-1.5 text-xs font-semibold capitalize text-gray-700">{user.role}</span>
         </header>
         <div className="flex flex-col gap-5 mt-8 mb-8">
+          {user?.verificationStatus === 'incomplete' && <Link to="/verification-profile" className="rounded-xl border border-yellow-200 bg-yellow-50 p-4 text-sm text-yellow-800 block">Your profile needs verification. Click here to complete it.</Link>}
           {user?.verificationStatus === 'pending' && <div className="rounded-xl border border-yellow-200 bg-yellow-50 p-4 text-sm text-yellow-800">Your profile is awaiting verification.</div>}
-          {user?.verificationStatus === 'needs_correction' && <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800">Your profile needs correction. {user.verificationRemarks && <span className="block mt-1">Remark: {user.verificationRemarks}</span>} <Link className="font-semibold underline" to="/profile">Edit profile</Link></div>}
+          {user?.verificationStatus === 'needs_correction' && <Link to="/verification-profile" className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800 block">Your profile needs correction. Click here to view remarks and edit.</Link>}
           {user?.verificationStatus === 'verified' && <div className="rounded-xl border border-green-200 bg-green-50 p-4 text-sm text-green-800">Your profile has been verified.</div>}
 
           {applications.filter(a => a.status === 'approved' && a.releaseDetails?.date).map(app => (
