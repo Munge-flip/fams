@@ -9,6 +9,8 @@ const allowedFields = [
   'barangay', 'contactNo', 'aidCategory', 'office', 'adminLevel',
 ];
 
+const updateableProfileFields = ['name', 'studentID', 'course', 'yearLevel', 'barangay', 'contactNo', 'aidCategory'];
+
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 const toSafeUser = (user) => {
@@ -132,4 +134,28 @@ const logout = (req, res) => {
 
 const me = (req, res) => res.status(200).json({ success: true, data: toSafeUser(req.user) });
 
-module.exports = { register, login, logout, me };
+const updateProfile = asyncHandler(async (req, res) => {
+
+  const invalidField = Object.keys(body).find((field) => !updateableProfileFields.includes(field));
+  if (invalidField) {
+    return res.status(400).json({ success: false, message: `Cannot update field: ${invalidField}.` });
+  }
+
+  if (body.name !== undefined && (typeof body.name !== 'string' || !body.name.trim())) {
+    return res.status(400).json({ success: false, message: 'Name is required.' });
+  }
+
+
+  Object.keys(body).forEach((field) => {
+    user[field] = body[field];
+  });
+
+  if (user.verificationStatus === 'needs_correction') {
+    user.verificationStatus = 'pending';
+  }
+
+
+  res.status(200).json({ success: true, data: toSafeUser(user) });
+});
+
+module.exports = { register, login, logout, me, updateProfile };

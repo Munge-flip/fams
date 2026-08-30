@@ -4,6 +4,7 @@ import ProgramCard from '../../components/ProgramCard';
 import StudentBottomNav from '../../components/StudentBottomNav';
 import { useAuth } from '../../context/AuthContext';
 import { getPrograms } from '../../services/programService';
+import { getApplications } from '../../services/applicationService';
 
 const formatDeadline = (deadline) => new Intl.DateTimeFormat('en-PH', {
   month: 'short',
@@ -16,25 +17,30 @@ const byDeadline = (first, second) => new Date(first.deadline) - new Date(second
 export default function Dashboard() {
   const { user } = useAuth();
   const [programs, setPrograms] = useState([]);
+  const [applications, setApplications] = useState([]);
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
-  const loadPrograms = async () => {
+  const loadData = async () => {
     setLoading(true);
     setError('');
     try {
-      const data = await getPrograms();
-      setPrograms(data.data || []);
+      const [programsResponse, applicationsResponse] = await Promise.all([
+        getPrograms(),
+        getApplications()
+      ]);
+      setPrograms(programsResponse.data || []);
+      setApplications(applicationsResponse.data || []);
     } catch (requestError) {
-      setError(requestError.response?.data?.message || 'Unable to load available assistance programs.');
+      setError(requestError.response?.data?.message || 'Unable to load dashboard data.');
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    loadPrograms();
+    loadData();
   }, []);
 
 
@@ -57,6 +63,30 @@ export default function Dashboard() {
           </div>
           <span className="rounded-full border border-gray-300 px-3 py-1.5 text-xs font-semibold capitalize text-gray-700">{user.role}</span>
         </header>
+        <div className="flex flex-col gap-5 mt-8 mb-8">
+          {user?.verificationStatus === 'pending' && <div className="rounded-xl border border-yellow-200 bg-yellow-50 p-4 text-sm text-yellow-800">Your profile is awaiting verification.</div>}
+          {user?.verificationStatus === 'needs_correction' && <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800">Your profile needs correction. {user.verificationRemarks && <span className="block mt-1">Remark: {user.verificationRemarks}</span>} <Link className="font-semibold underline" to="/profile">Edit profile</Link></div>}
+          {user?.verificationStatus === 'verified' && <div className="rounded-xl border border-green-200 bg-green-50 p-4 text-sm text-green-800">Your profile has been verified.</div>}
+
+          {applications.filter(a => a.status === 'approved' && a.releaseDetails?.date).map(app => (
+            <div key={app._id} className="rounded-xl border border-blue-200 bg-blue-50 p-5">
+              <h3 className="text-lg font-bold text-blue-900">Cash assistance release</h3>
+              <p className="mt-1 text-sm text-blue-800">Program: {app.program?.title}</p>
+              <p className="mt-2 text-lg font-bold text-blue-900">₱{app.releaseDetails.amount}</p>
+              <div className="mt-3 grid grid-cols-2 gap-3 text-sm text-blue-800">
+                <p><strong>Date:</strong> {new Date(app.releaseDetails.date).toLocaleDateString()}</p>
+                <p><strong>Time:</strong> {app.releaseDetails.timeStart} - {app.releaseDetails.timeEnd}</p>
+                <p className="col-span-2"><strong>Location:</strong> {app.releaseDetails.location}</p>
+              </div>
+              {app.releaseDetails.instructions && <p className="mt-3 text-sm text-blue-800 border-t border-blue-200 pt-3"><strong>Instructions:</strong> {app.releaseDetails.instructions}</p>}
+            </div>
+          ))}
+          {applications.filter(a => a.status === 'approved' && !a.releaseDetails?.date).map(app => (
+            <div key={app._id} className="rounded-xl border border-gray-200 bg-white p-5 text-sm text-gray-600">
+               Your application for {app.program?.title} has been approved. Release details will appear here once scheduled.
+            </div>
+          ))}
+        </div>
 
         <section className="mt-8" aria-labelledby="deadline-heading">
           <div className="flex items-center justify-between gap-3">

@@ -18,6 +18,14 @@ const applicationSchema = new mongoose.Schema({
   remarks: String,
   submittedAt: { type: Date, default: Date.now },
   updatedAt: Date,
+  releaseDetails: {
+    amount: { type: Number, default: 0 },
+    date: Date,
+    timeStart: String,
+    timeEnd: String,
+    location: String,
+    instructions: String,
+  },
 });
 
 module.exports = mongoose.model('Application', applicationSchema);

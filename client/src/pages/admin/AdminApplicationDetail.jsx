@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { getApplication, updateApplicationStatus } from '../../services/applicationService';
+import { getApplication, updateApplicationStatus, verifyApplication, scheduleRelease } from '../../services/applicationService';
 
 const documentLabels = {
   valid_id: 'Valid ID',
@@ -54,7 +54,36 @@ export default function AdminApplicationDetail() {
   const [success, setSuccess] = useState('');
   const [savingRemarks, setSavingRemarks] = useState(false);
   const [changingStatus, setChangingStatus] = useState('');
+  const [verification, setVerification] = useState({ status: '', remarks: '' });
+  const [release, setRelease] = useState({ amount: 0, date: '', timeStart: '', timeEnd: '', location: '', instructions: '' });
+  const [isProcessing, setIsProcessing] = useState(false);
 
+  useEffect(() => {
+    if (application) {
+      setVerification({ status: application.applicant.verificationStatus || 'pending', remarks: application.applicant.verificationRemarks || '' });
+      setRelease(application.releaseDetails || { amount: 0, date: '', timeStart: '', timeEnd: '', location: '', instructions: '' });
+    }
+  }, [application]);
+
+  const handleVerify = async () => {
+    try {
+      setIsProcessing(true);
+      setError('');
+      await verifyApplication(id, verification);
+      setSuccess('Verification updated.');
+      await loadApplication();
+    } catch (e) { setError(e.message); } finally { setIsProcessing(false); }
+  };
+
+  const handleSchedule = async () => {
+    try {
+      setIsProcessing(true);
+      setError('');
+      await scheduleRelease(id, release);
+      setSuccess('Release scheduled.');
+      await loadApplication();
+    } catch (e) { setError(e.message); } finally { setIsProcessing(false); }
+  };
   const loadApplication = async () => {
     try {
       setLoading(true);
@@ -145,6 +174,37 @@ export default function AdminApplicationDetail() {
         <h2 className="text-lg font-bold text-black" id="status-management-heading">Status management</h2>
         <p className="mt-1 text-sm text-gray-600">Only valid next steps are available for this application.</p>
         {availableTransitions.length > 0 ? <div className="mt-4 flex flex-wrap gap-3">{availableTransitions.map((transition) => <button className={`min-h-11 rounded-lg px-4 text-sm font-bold text-white disabled:cursor-not-allowed disabled:opacity-60 ${transition.status === 'denied' ? 'bg-red-700' : 'bg-black'}`} key={transition.status} type="button" onClick={() => changeStatus(transition.status, transition.label)} disabled={isSaving}>{changingStatus === transition.status ? 'Saving…' : transition.label}</button>)}</div> : <p className="mt-4 rounded-lg bg-gray-100 p-3 text-sm text-gray-700">This status is final. No further status transitions are available.</p>}
+      </section>
+      <section className="mt-5 rounded-xl border border-gray-200 bg-white p-5 shadow-sm sm:p-6" aria-labelledby="verification-heading">
+        <h2 className="text-lg font-bold text-black" id="verification-heading">Beneficiary Verification</h2>
+        <div className="mt-4 space-y-3">
+          <select className="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm" value={verification.status} onChange={(e) => setVerification(v => ({...v, status: e.target.value}))}>
+            <option value="pending">Pending</option>
+            <option value="verified">Verified</option>
+            <option value="needs_correction">Needs correction</option>
+          </select>
+          <textarea className="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm" placeholder="Remarks" value={verification.remarks} onChange={(e) => setVerification(v => ({...v, remarks: e.target.value}))} />
+          <button className="min-h-10 rounded-lg bg-black px-4 text-sm font-bold text-white" onClick={handleVerify} disabled={isProcessing}>Save verification</button>
+        </div>
+      </section>
+
+      <section className="mt-5 rounded-xl border border-gray-200 bg-white p-5 shadow-sm sm:p-6" aria-labelledby="release-heading">
+        <h2 className="text-lg font-bold text-black" id="release-heading">Release Scheduling</h2>
+        {application.status === 'approved' ? (
+          <div className="mt-4 space-y-3">
+            <input className="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm" type="number" placeholder="Amount" value={release.amount} onChange={(e) => setRelease(r => ({...r, amount: Number(e.target.value)}))} />
+            <input className="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm" type="date" value={release.date ? new Date(release.date).toISOString().split('T')[0] : ''} onChange={(e) => setRelease(r => ({...r, date: e.target.value}))} />
+            <div className="flex gap-2">
+              <input className="flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm" type="time" value={release.timeStart} onChange={(e) => setRelease(r => ({...r, timeStart: e.target.value}))} />
+              <input className="flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm" type="time" value={release.timeEnd} onChange={(e) => setRelease(r => ({...r, timeEnd: e.target.value}))} />
+            </div>
+            <input className="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm" placeholder="Location" value={release.location} onChange={(e) => setRelease(r => ({...r, location: e.target.value}))} />
+            <textarea className="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm" placeholder="Instructions" value={release.instructions} onChange={(e) => setRelease(r => ({...r, instructions: e.target.value}))} />
+            <button className="min-h-10 rounded-lg bg-black px-4 text-sm font-bold text-white" onClick={handleSchedule} disabled={isProcessing}>Schedule release</button>
+          </div>
+        ) : (
+          <p className="mt-4 text-sm text-gray-600">{application.status === 'cash_released' ? 'Release already completed.' : 'Scheduling is only available for approved applications.'}</p>
+        )}
       </section>
 
       <section className="mt-5 rounded-xl border border-gray-200 bg-white p-5 shadow-sm sm:p-6" aria-labelledby="remarks-heading">

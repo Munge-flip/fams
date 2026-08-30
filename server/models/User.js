@@ -5,6 +5,8 @@ const userSchema = new mongoose.Schema({
   email: { type: String, unique: true },
   password: { type: String, select: false },
   role: { type: String, enum: ['student', 'resident', 'admin'] },
+  verificationStatus: { type: String, enum: ['pending', 'verified', 'needs_correction'], default: 'pending' },
+  verificationRemarks: { type: String, default: '' },
   studentID: String,
   course: String,
   yearLevel: Number,

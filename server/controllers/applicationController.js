@@ -15,7 +15,7 @@ const transitions = {
 };
 
 const applicationPopulation = [
-  { path: 'applicant', select: 'name email role studentID barangay contactNo' },
+  { path: 'applicant', select: 'name email role studentID barangay contactNo verificationStatus verificationRemarks' },
   { path: 'program' },
   { path: 'documents' },
 ];
@@ -190,6 +190,31 @@ const cancelApplication = asyncHandler(async (req, res) => {
   await application.deleteOne();
   return res.status(200).json({ success: true, data: { message: 'Application cancelled successfully.' } });
 });
+const verifyApplication = asyncHandler(async (req, res) => {
+  const { status, remarks } = req.body;
+  if (!['pending', 'verified', 'needs_correction'].includes(status)) {
+    return res.status(400).json({ success: false, message: 'Invalid verification status.' });
+  }
+  const application = await Application.findById(req.params.id);
+  if (!application) return res.status(404).json({ success: false, message: 'Application not found.' });
+  const user = await User.findById(application.applicant);
+  user.verificationStatus = status;
+  user.verificationRemarks = remarks || '';
+  await user.save();
+  res.status(200).json({ success: true, data: user });
+});
+
+const scheduleRelease = asyncHandler(async (req, res) => {
+  const { amount, date, timeStart, timeEnd, location, instructions } = req.body;
+  if (amount === undefined || amount < 0) return res.status(400).json({ success: false, message: 'Invalid amount.' });
+  if (!date || !timeStart || !timeEnd || !location) return res.status(400).json({ success: false, message: 'All release fields are required.' });
+  const application = await Application.findById(req.params.id);
+  if (!application) return res.status(404).json({ success: false, message: 'Application not found.' });
+  if (application.status !== 'approved') return res.status(400).json({ success: false, message: 'Only approved applications can be scheduled.' });
+  application.releaseDetails = { amount, date, timeStart, timeEnd, location, instructions };
+  await application.save();
+  res.status(200).json({ success: true, data: application });
+});
 
 module.exports = {
   cancelApplication,
@@ -197,4 +222,6 @@ module.exports = {
   getApplication,
   listApplications,
   updateApplicationStatus,
+  verifyApplication,
+  scheduleRelease,
 };
