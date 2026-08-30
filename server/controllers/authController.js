@@ -214,7 +214,7 @@ const validateVerificationPayload = (body) => {
     if (invalidKey) {
       throw new Error(`Unexpected field: ${parentKey}.${invalidKey}.`);
     }
-    if (parent.employmentStatus !== undefined && !employmentStatuses.includes(parent.employmentStatus)) {
+    if (parent.employmentStatus !== undefined && parent.employmentStatus !== '' && !employmentStatuses.includes(parent.employmentStatus)) {
       throw new Error(`Invalid employment status for ${parentKey}.`);
     }
     if (parent.dob !== undefined && parent.dob !== null && parent.dob !== '' && !isNotFutureDate(parent.dob)) {
@@ -250,6 +250,19 @@ const validateVerificationPayload = (body) => {
   return null;
 };
 
+const cleanParentFields = (parent) => {
+  if (!parent || typeof parent !== 'object' || Array.isArray(parent)) {
+    return {};
+  }
+  const cleaned = {};
+  Object.keys(parent).forEach((key) => {
+    if (parent[key] !== '') {
+      cleaned[key] = parent[key];
+    }
+  });
+  return cleaned;
+};
+
 const submitVerificationProfile = asyncHandler(async (req, res) => {
   const user = req.user;
 
@@ -274,8 +287,8 @@ const submitVerificationProfile = asyncHandler(async (req, res) => {
   user.course = String(course).trim();
   user.yearLevel = Number(yearLevel);
   user.school = String(school).trim();
-  user.father = father || {};
-  user.mother = mother || {};
+  user.father = cleanParentFields(father);
+  user.mother = cleanParentFields(mother);
   user.household = household || {};
 
   if (user.verificationStatus === 'incomplete' || user.verificationStatus === 'needs_correction') {

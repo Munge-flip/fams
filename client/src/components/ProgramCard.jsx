@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
 
 const categoryLabels = {
   scholarship: 'Scholarship',
@@ -13,6 +14,9 @@ const formatDeadline = (deadline) => new Intl.DateTimeFormat('en-PH', {
 }).format(new Date(deadline));
 
 export default function ProgramCard({ program }) {
+  const { user } = useAuth();
+  const verified = user?.verificationStatus === 'verified';
+
   return (
     <article className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
       <div className="flex items-start justify-between gap-3">
@@ -29,7 +33,11 @@ export default function ProgramCard({ program }) {
       </div>
       <div className="mt-4 flex items-center justify-between gap-3">
         <p className="text-sm font-semibold text-black">{program.slots} available slots</p>
-        <Link className="inline-flex min-h-11 items-center rounded-lg bg-black px-3 py-2 text-sm font-semibold text-white" to={`/apply?program=${program._id}`}>Apply now</Link>
+        {verified ? (
+          <Link className="inline-flex min-h-11 items-center rounded-lg bg-black px-3 py-2 text-sm font-semibold text-white" to={`/apply?program=${program._id}`}>Apply now</Link>
+        ) : (
+          <Link className="inline-flex min-h-11 items-center rounded-lg bg-gray-200 px-3 py-2 text-sm font-semibold text-gray-800" to="/verification-profile">Verify profile to apply</Link>
+        )}
       </div>
     </article>
   );

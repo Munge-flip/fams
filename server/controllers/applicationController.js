@@ -85,6 +85,10 @@ const getApplication = asyncHandler(async (req, res) => {
 });
 
 const createApplication = asyncHandler(async (req, res) => {
+  if (req.user.verificationStatus !== 'verified') {
+    return res.status(403).json({ success: false, message: 'Your profile must be verified before you can apply.' });
+  }
+
   if (!req.body || typeof req.body !== 'object' || Array.isArray(req.body)) {
     return res.status(400).json({ success: false, message: 'A JSON object is required.' });
   }

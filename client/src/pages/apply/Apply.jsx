@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import StudentBottomNav from '../../components/StudentBottomNav';
+import { useAuth } from '../../context/AuthContext';
 import { createApplication } from '../../services/applicationService';
 import { uploadDocument } from '../../services/documentService';
 import { getProgramById } from '../../services/programService';
@@ -18,6 +19,7 @@ const dateValue = (value) => value ? new Date(value).toLocaleDateString('en-PH',
 export default function Apply() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
+  const { user } = useAuth();
   const programId = searchParams.get('program');
   const [program, setProgram] = useState(null);
   const [loadingProgram, setLoadingProgram] = useState(true);
@@ -147,6 +149,22 @@ export default function Apply() {
       setUploading(false);
     }
   };
+
+  if (user?.verificationStatus !== 'verified') {
+    return (
+      <main className="grid min-h-screen place-items-center bg-gray-50 p-5 pb-24">
+        <section className="max-w-md rounded-2xl border border-red-200 bg-white p-6 text-center">
+          <p className="text-sm font-bold uppercase tracking-wide text-red-700">Verification required</p>
+          <p className="mt-3 text-sm leading-6 text-gray-700">Your profile must be verified before you can apply for financial assistance.</p>
+          <div className="mt-5 flex flex-col justify-center gap-3 sm:flex-row">
+            <Link className="inline-flex min-h-11 items-center justify-center rounded-lg bg-black px-4 text-sm font-semibold text-white" to="/verification-profile">Go to verification profile</Link>
+            <Link className="inline-flex min-h-11 items-center justify-center rounded-lg bg-gray-200 px-4 text-sm font-semibold text-gray-800" to="/programs">Browse programs</Link>
+          </div>
+        </section>
+        <StudentBottomNav />
+      </main>
+    );
+  }
 
   if (loadingProgram) return <main className="grid min-h-screen place-items-center bg-gray-50 p-5 text-sm text-gray-600" role="status">Loading application form…</main>;
   if (error && !program) return <main className="grid min-h-screen place-items-center bg-gray-50 p-5"><section className="max-w-md rounded-2xl border border-red-200 bg-white p-6 text-center"><p className="text-sm text-red-700" role="alert">{error}</p><div className="mt-4 flex justify-center gap-3"><button onClick={loadProgram} className="inline-flex min-h-11 items-center rounded-lg bg-gray-200 px-4 text-sm font-semibold text-gray-800 hover:bg-gray-300">Retry</button><Link className="inline-flex min-h-11 items-center rounded-lg bg-black px-4 text-sm font-semibold text-white" to="/programs">Browse programs</Link></div></section></main>;
