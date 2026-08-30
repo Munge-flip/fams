@@ -12,25 +12,23 @@ export default function Programs() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
+  const loadPrograms = async () => {
+    try {
+      setLoading(true);
+      setError('');
+      const response = await getPrograms();
+      setPrograms(response.data);
+    } catch (requestError) {
+      setError(requestError.response?.data?.message || 'Unable to load available assistance programs.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    let active = true;
-
-    const loadPrograms = async () => {
-      try {
-        setLoading(true);
-        setError('');
-        const response = await getPrograms();
-        if (active) setPrograms(response.data);
-      } catch (requestError) {
-        if (active) setError(requestError.response?.data?.message || 'Unable to load available assistance programs.');
-      } finally {
-        if (active) setLoading(false);
-      }
-    };
-
     loadPrograms();
-    return () => { active = false; };
   }, []);
+
 
   const filteredPrograms = useMemo(() => {
     const term = search.trim().toLowerCase();
@@ -60,7 +58,7 @@ export default function Programs() {
         </label>
 
         {loading && <p className="mt-5 rounded-xl border border-gray-200 bg-white p-4 text-sm text-gray-600" role="status">Loading aid programs…</p>}
-        {error && <p className="mt-5 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700" role="alert">{error}</p>}
+        {error && <div className="mt-5 flex flex-col items-start gap-3 rounded-xl border border-red-200 bg-red-50 p-4"><p className="text-sm text-red-700" role="alert">{error}</p><button onClick={loadPrograms} className="min-h-10 rounded-lg bg-red-100 px-4 text-sm font-bold text-red-800 disabled:opacity-50" disabled={loading}>Retry</button></div>}
         {!loading && !error && filteredPrograms.length === 0 && <p className="mt-5 rounded-xl border border-gray-200 bg-white p-4 text-sm text-gray-600">No active programs match your search.</p>}
         <div className="mt-5 space-y-4">
           {!loading && !error && filteredPrograms.map((program) => <ProgramCard key={program._id} program={program} />)}

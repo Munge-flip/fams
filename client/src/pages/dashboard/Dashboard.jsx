@@ -20,25 +20,23 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
+  const loadPrograms = async () => {
+    setLoading(true);
+    setError('');
+    try {
+      const data = await getPrograms();
+      setPrograms(data.data || []);
+    } catch (requestError) {
+      setError(requestError.response?.data?.message || 'Unable to load available assistance programs.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    let active = true;
-
-    const loadPrograms = async () => {
-      try {
-        setLoading(true);
-        setError('');
-        const response = await getPrograms();
-        if (active) setPrograms(response.data);
-      } catch (requestError) {
-        if (active) setError(requestError.response?.data?.message || 'Unable to load available assistance programs.');
-      } finally {
-        if (active) setLoading(false);
-      }
-    };
-
     loadPrograms();
-    return () => { active = false; };
   }, []);
+
 
   const upcomingPrograms = useMemo(() => [...programs].sort(byDeadline), [programs]);
   const discoveryPrograms = useMemo(() => {
@@ -56,7 +54,6 @@ export default function Dashboard() {
           <div>
             <p className="text-sm font-semibold tracking-[0.2em] text-gray-600">FAMS</p>
             <h1 className="mt-3 text-3xl font-bold tracking-tight text-black">Hello, {user.name?.split(' ')[0] || 'there'}.</h1>
-            <p className="mt-2 text-sm leading-6 text-gray-600">Find financial assistance programs that are currently open.</p>
           </div>
           <span className="rounded-full border border-gray-300 px-3 py-1.5 text-xs font-semibold capitalize text-gray-700">{user.role}</span>
         </header>
@@ -67,7 +64,7 @@ export default function Dashboard() {
             <Link className="min-h-11 rounded-lg px-3 py-2 text-sm font-semibold text-black underline underline-offset-4" to="/programs">Browse all</Link>
           </div>
           {loading && <p className="mt-4 rounded-xl border border-gray-200 bg-white p-4 text-sm text-gray-600" role="status">Loading program deadlines…</p>}
-          {error && <p className="mt-4 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700" role="alert">{error}</p>}
+          {error && <div className="mt-4 flex flex-col items-start gap-3 rounded-xl border border-red-200 bg-red-50 p-4"><p className="text-sm text-red-700" role="alert">{error}</p><button onClick={loadPrograms} className="min-h-10 rounded-lg bg-red-100 px-4 text-sm font-bold text-red-800 disabled:opacity-50" disabled={loading}>Retry</button></div>}
           {!loading && !error && upcomingPrograms.length === 0 && <p className="mt-4 rounded-xl border border-gray-200 bg-white p-4 text-sm text-gray-600">No active program deadlines are available right now.</p>}
           {!loading && !error && upcomingPrograms.length > 0 && (
             <div className="mt-4 grid gap-3 sm:grid-cols-2">

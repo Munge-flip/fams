@@ -118,7 +118,7 @@ export default function AdminApplicationDetail() {
   };
 
   if (loading) return <section className="rounded-xl border border-gray-200 bg-white p-6 text-sm text-gray-600" role="status">Loading application…</section>;
-  if (!application) return <section className="rounded-xl border border-red-200 bg-white p-6"><p className="text-sm text-red-700" role="alert">{error || 'Application not found.'}</p><Link className="mt-4 inline-flex min-h-11 items-center rounded-lg bg-black px-4 text-sm font-semibold text-white" to="/admin/applications">Back to applications</Link></section>;
+  if (!application) return <section className="rounded-xl border border-red-200 bg-white p-6"><p className="text-sm text-red-700" role="alert">{error || 'Application not found.'}</p><div className="mt-4 flex gap-3"><button onClick={loadApplication} className="inline-flex min-h-11 items-center rounded-lg bg-gray-200 px-4 text-sm font-semibold text-gray-800 hover:bg-gray-300" disabled={loading}>Retry</button><Link className="inline-flex min-h-11 items-center rounded-lg bg-black px-4 text-sm font-semibold text-white" to="/admin/applications">Back to applications</Link></div></section>;
 
   const applicant = application.applicant || {};
   const personalInfo = application.personalInfo || {};
