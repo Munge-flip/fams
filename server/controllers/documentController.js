@@ -40,10 +40,6 @@ const deleteCloudinaryAsset = async (publicID) => {
 const uploadDocument = asyncHandler(async (req, res) => {
   const { application: applicationId, docType } = req.body || {};
 
-  if (!isValidObjectId(applicationId)) {
-    return res.status(400).json({ success: false, message: 'application must be a valid MongoDB ObjectId.' });
-  }
-
   if (!documentTypes.includes(docType)) {
     return res.status(400).json({ success: false, message: 'docType must be a valid document type.' });
   }
@@ -56,22 +52,30 @@ const uploadDocument = asyncHandler(async (req, res) => {
     return res.status(400).json({ success: false, message: 'File content does not match an allowed PDF or JPEG signature.' });
   }
 
-  const application = await Application.findOne({ _id: applicationId, applicant: req.user._id });
-  if (!application) {
-    return res.status(404).json({ success: false, message: 'Application not found.' });
+  let application = null;
+  if (applicationId !== undefined && applicationId !== null && applicationId !== '') {
+    if (!isValidObjectId(applicationId)) {
+      return res.status(400).json({ success: false, message: 'application must be a valid MongoDB ObjectId.' });
+    }
+    application = await Application.findOne({ _id: applicationId, applicant: req.user._id });
+    if (!application) {
+      return res.status(404).json({ success: false, message: 'Application not found.' });
+    }
   }
 
   const uploadResult = await uploadToCloudinary(req.file);
   const document = await Document.create({
-    application: application._id,
+    application: application ? application._id : null,
     uploader: req.user._id,
     docType,
     fileURL: uploadResult.secure_url,
     publicID: uploadResult.public_id,
   });
 
-  application.documents.push(document._id);
-  await application.save();
+  if (application) {
+    application.documents.push(document._id);
+    await application.save();
+  }
 
   return res.status(201).json({ success: true, data: document });
 });
@@ -86,15 +90,17 @@ const deleteDocument = asyncHandler(async (req, res) => {
     return res.status(404).json({ success: false, message: 'Document not found.' });
   }
 
-  const application = await Application.findOne({ _id: document.application, applicant: req.user._id });
-  if (!application) {
-    return res.status(404).json({ success: false, message: 'Document not found.' });
+  if (document.application) {
+    const application = await Application.findOne({ _id: document.application, applicant: req.user._id });
+    if (!application) {
+      return res.status(404).json({ success: false, message: 'Document not found.' });
+    }
+    application.documents.pull(document._id);
+    await application.save();
   }
 
   await deleteCloudinaryAsset(document.publicID);
   await document.deleteOne();
-  application.documents.pull(document._id);
-  await application.save();
 
   return res.status(200).json({ success: true, data: { message: 'Document deleted successfully.' } });
 });

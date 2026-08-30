@@ -67,9 +67,8 @@ export default function Dashboard() {
           {user?.verificationStatus === 'incomplete' && <Link to="/verification-profile" className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800 block font-semibold">Your profile needs verification. Click here to complete it.</Link>}
           {user?.verificationStatus === 'pending' && <div className="rounded-xl border border-yellow-200 bg-yellow-50 p-4 text-sm text-yellow-800">Your profile is awaiting verification.</div>}
           {user?.verificationStatus === 'needs_correction' && <Link to="/verification-profile" className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800 block">Your profile needs correction. Click here to view remarks and edit.</Link>}
-          {user?.verificationStatus === 'verified' && <div className="rounded-xl border border-green-200 bg-green-50 p-4 text-sm text-green-800">Your profile has been verified.</div>}
 
-          {applications.filter(a => a.status === 'approved' && (a.releaseDetails?.date || a.program?.releaseDetails?.date)).map(app => {
+          {applications.filter(a => a.status === 'approved' && a.program?.status === 'active' && (a.releaseDetails?.date || a.program?.releaseDetails?.date)).map(app => {
             const schedule = app.releaseDetails?.date ? app.releaseDetails : app.program?.releaseDetails;
             return (
               <div key={app._id} className="rounded-xl border border-blue-200 bg-blue-50 p-5">
@@ -85,7 +84,7 @@ export default function Dashboard() {
               </div>
             );
           })}
-          {applications.filter(a => a.status === 'approved' && !(a.releaseDetails?.date || a.program?.releaseDetails?.date)).map(app => (
+          {applications.filter(a => a.status === 'approved' && a.program?.status === 'active' && !(a.releaseDetails?.date || a.program?.releaseDetails?.date)).map(app => (
             <div key={app._id} className="rounded-xl border border-gray-200 bg-white p-5 text-sm text-gray-600">
                Your application for {app.program?.title} has been approved. Release details will appear here once scheduled.
             </div>

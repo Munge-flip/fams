@@ -15,6 +15,15 @@ const documentLabels = {
 
 const errorMessage = (error, fallback) => error.response?.data?.message || error.message || fallback;
 const dateValue = (value) => value ? new Date(value).toLocaleDateString('en-PH', { year: 'numeric', month: 'long', day: 'numeric' }) : 'Not provided';
+const toDateInput = (value) => {
+  if (!value) return '';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '';
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
 
 export default function Apply() {
   const [searchParams] = useSearchParams();
@@ -24,7 +33,12 @@ export default function Apply() {
   const [program, setProgram] = useState(null);
   const [loadingProgram, setLoadingProgram] = useState(true);
   const [step, setStep] = useState(1);
-  const [personalInfo, setPersonalInfo] = useState({ fullName: '', address: '', contactNo: '', birthdate: '' });
+  const [personalInfo, setPersonalInfo] = useState({
+    fullName: user?.name || '',
+    address: user?.address || '',
+    contactNo: user?.contactNo || '',
+    birthdate: toDateInput(user?.dateOfBirth),
+  });
   const [documents, setDocuments] = useState([]);
   const [uploadedDocuments, setUploadedDocuments] = useState([]);
   const [applicationId, setApplicationId] = useState('');
@@ -101,6 +115,10 @@ export default function Apply() {
   };
   const removeDocument = (id) => setDocuments((current) => current.filter((document) => document.id !== id));
   const saveAndUpload = async () => {
+    if (documents.length === 0) {
+      setError('Please upload at least one supporting document before continuing.');
+      return;
+    }
     const pendingDocs = documents.filter((doc) => doc.status !== 'success');
     const invalidDocument = pendingDocs.find((document) => !document.file || !document.docType);
     if (invalidDocument) { setError('Choose a document type and file for every upload slot, or remove the empty slot.'); return; }
@@ -109,14 +127,7 @@ export default function Apply() {
 
     try {
       setUploading(true); setError(''); setProgress(0);
-      let currentApplicationId = applicationId;
-      if (!currentApplicationId) {
-        const created = await createApplication({ program: programId, personalInfo });
-        currentApplicationId = created.data._id;
-        setApplicationId(currentApplicationId);
-      }
       const savedDocuments = [];
-      let successCount = documents.length - pendingDocs.length;
       for (let index = 0; index < documents.length; index += 1) {
         const document = documents[index];
         if (document.status === 'success') continue;
@@ -124,21 +135,31 @@ export default function Apply() {
         try {
           setDocuments((current) => current.map((doc) => doc.id === document.id ? { ...doc, status: 'uploading' } : doc));
           const uploaded = await uploadDocument({
-            applicationId: currentApplicationId,
             docType: document.docType,
             file: document.file,
             onUploadProgress: (event) => {
-              if (event.total) setProgress(Math.round((((successCount) + event.loaded / event.total) / documents.length) * 100));
+              if (event.total) setProgress(Math.round(((index + event.loaded / event.total) / documents.length) * 100));
             },
           });
           savedDocuments.push(uploaded.data);
-          setDocuments((current) => current.map((doc) => doc.id === document.id ? { ...doc, status: 'success' } : doc));
-          successCount += 1;
+          setDocuments((current) => current.map((doc) => doc.id === document.id ? { ...doc, status: 'success', docId: uploaded.data._id } : doc));
         } catch (uploadError) {
           setDocuments((current) => current.map((doc) => doc.id === document.id ? { ...doc, status: 'error' } : doc));
           throw uploadError;
         }
       }
+
+      const documentIds = [...new Set([
+        ...documents.filter((doc) => doc.status === 'success' && doc.docId).map((doc) => doc.docId),
+        ...savedDocuments.map((doc) => doc._id),
+      ])];
+      if (documentIds.length === 0) {
+        setError('Please upload at least one supporting document before continuing.');
+        return;
+      }
+
+      const created = await createApplication({ program: programId, personalInfo, documents: documentIds });
+      setApplicationId(created.data._id);
       setUploadedDocuments((current) => [...current, ...savedDocuments]);
       setDocuments([]);
       setProgress(100);
@@ -179,7 +200,23 @@ export default function Apply() {
         <ol className="mt-6 grid grid-cols-3 gap-2" aria-label="Application steps">{['Personal info', 'Documents', 'Review'].map((label, index) => <li className={`rounded-lg px-2 py-2 text-center text-xs font-bold ${step === index + 1 ? 'bg-black text-white' : step > index + 1 ? 'bg-gray-200 text-gray-800' : 'bg-white text-gray-400'}`} key={label}>{index + 1}. {label}</li>)}</ol>
         {error && <p className="mt-5 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700" role="alert">{error}</p>}
 
-        {step === 1 && <section className="mt-6 rounded-2xl border border-gray-200 bg-white p-5 shadow-sm"><h2 className="text-xl font-bold">Personal information</h2><p className="mt-2 text-sm text-gray-600">Enter the information that will be included with your application.</p><div className="mt-5 space-y-4">{[['fullName', 'Full name', 'text'], ['address', 'Address', 'text'], ['contactNo', 'Contact number', 'tel'], ['birthdate', 'Birthdate', 'date']].map(([name, label, type]) => <label className="block" key={name}><span className="text-sm font-semibold text-gray-800">{label}</span><input className={`mt-1.5 block min-h-12 w-full rounded-xl border px-3 text-base outline-none focus:border-black focus:ring-2 focus:ring-black/15 ${fieldErrors[name] ? 'border-red-500' : 'border-gray-300'}`} name={name} type={type} value={personalInfo[name]} onChange={updatePersonalInfo} aria-invalid={Boolean(fieldErrors[name])} />{fieldErrors[name] && <span className="mt-1 block text-xs text-red-700">{fieldErrors[name]}</span>}</label>)}</div><button className="mt-6 min-h-12 w-full rounded-xl bg-black px-4 text-sm font-bold text-white" type="button" onClick={continuePersonalInfo}>Continue to documents</button></section>}
+        {step === 1 && (
+          <section className="mt-6 rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
+            <h2 className="text-xl font-bold">Personal information</h2>
+            <p className="mt-2 text-sm text-gray-600">Enter the information that will be included with your application.</p>
+            <div className="mt-5 space-y-4">
+              {[['fullName', 'Full name', 'text', true], ['birthdate', 'Birthdate', 'date', true], ['address', 'Address', 'text', false], ['contactNo', 'Contact number', 'tel', false]].map(([name, label, type, readOnly]) => (
+                <label className="block" key={name}>
+                  <span className="text-sm font-semibold text-gray-800">{label}</span>
+                  <input className={`mt-1.5 block min-h-12 w-full rounded-xl border px-3 text-base outline-none focus:border-black focus:ring-2 focus:ring-black/15 ${readOnly ? 'cursor-not-allowed border-gray-200 bg-gray-100 text-gray-600' : ''} ${fieldErrors[name] ? 'border-red-500' : 'border-gray-300'}`} name={name} type={type} value={personalInfo[name]} onChange={updatePersonalInfo} disabled={readOnly} aria-invalid={Boolean(fieldErrors[name])} />
+                  {readOnly && <span className="mt-1 block text-xs text-gray-500">Verified profile information</span>}
+                  {fieldErrors[name] && <span className="mt-1 block text-xs text-red-700">{fieldErrors[name]}</span>}
+                </label>
+              ))}
+            </div>
+            <button className="mt-6 min-h-12 w-full rounded-xl bg-black px-4 text-sm font-bold text-white" type="button" onClick={continuePersonalInfo}>Continue to documents</button>
+          </section>
+        )}
 
         {step === 2 && (() => {
           const usedDocTypes = [...new Set(documents.map(d => d.docType))];

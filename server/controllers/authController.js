@@ -135,6 +135,12 @@ const logout = (req, res) => {
 const me = (req, res) => res.status(200).json({ success: true, data: toSafeUser(req.user) });
 
 const updateProfile = asyncHandler(async (req, res) => {
+  const user = req.user;
+  const body = req.body;
+
+  if (!body || typeof body !== 'object' || Array.isArray(body)) {
+    return res.status(400).json({ success: false, message: 'A JSON object is required.' });
+  }
 
   const invalidField = Object.keys(body).find((field) => !updateableProfileFields.includes(field));
   if (invalidField) {
@@ -145,7 +151,6 @@ const updateProfile = asyncHandler(async (req, res) => {
     return res.status(400).json({ success: false, message: 'Name is required.' });
   }
 
-
   Object.keys(body).forEach((field) => {
     user[field] = body[field];
   });
@@ -155,7 +160,8 @@ const updateProfile = asyncHandler(async (req, res) => {
     user.verificationRemarks = '';
   }
 
-
+  await user.save();
+  res.status(200).json({ success: true, data: toSafeUser(user) });
 });
 
 const verificationProfileFields = [

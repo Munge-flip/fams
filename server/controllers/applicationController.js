@@ -1,10 +1,11 @@
 const AidProgram = require('../models/AidProgram');
 const Application = require('../models/Application');
+const Document = require('../models/Document');
 const User = require('../models/User');
 const asyncHandler = require('../utils/asyncHandler');
 const { isPlainObject, isValidDate, isValidObjectId } = require('../utils/validation');
 
-const applicationFields = ['program', 'personalInfo'];
+const applicationFields = ['program', 'personalInfo', 'documents'];
 const personalInfoFields = ['fullName', 'address', 'contactNo', 'birthdate'];
 const statuses = ['submitted', 'under_review', 'approved', 'denied', 'cash_released'];
 const transitions = {
@@ -67,7 +68,7 @@ const getApplicationForUser = async (id, user) => {
 
 const listApplications = asyncHandler(async (req, res) => {
   const query = req.user.role === 'admin' ? {} : { applicant: req.user._id };
-  const applications = await Application.find(query).populate(applicationPopulation);
+  const applications = await Application.find(query).sort({ submittedAt: -1 }).populate(applicationPopulation);
   return res.status(200).json({ success: true, data: applications });
 });
 
@@ -107,6 +108,25 @@ const createApplication = asyncHandler(async (req, res) => {
     return res.status(400).json({ success: false, message: personalInfoError });
   }
 
+  if (!Array.isArray(req.body.documents) || req.body.documents.length === 0) {
+    return res.status(400).json({ success: false, message: 'At least one supporting document is required.' });
+  }
+
+  const invalidDocument = req.body.documents.find((documentId) => !isValidObjectId(documentId));
+  if (invalidDocument) {
+    return res.status(400).json({ success: false, message: 'Each document must be a valid uploaded document.' });
+  }
+
+  const pendingDocuments = await Document.find({
+    _id: { $in: req.body.documents },
+    uploader: req.user._id,
+    application: null,
+  });
+
+  if (pendingDocuments.length !== req.body.documents.length) {
+    return res.status(400).json({ success: false, message: 'Each document must be a valid uploaded document owned by your account.' });
+  }
+
   const program = await AidProgram.findById(req.body.program);
   if (!program) {
     return res.status(404).json({ success: false, message: 'Aid program not found.' });
@@ -130,6 +150,13 @@ const createApplication = asyncHandler(async (req, res) => {
     program: program._id,
     personalInfo: normalizePersonalInfo(req.body.personalInfo),
   });
+
+  await Promise.all(pendingDocuments.map(async (document) => {
+    document.application = application._id;
+    await document.save();
+    application.documents.push(document._id);
+  }));
+  await application.save();
   await application.populate(applicationPopulation);
 
   return res.status(201).json({ success: true, data: application });

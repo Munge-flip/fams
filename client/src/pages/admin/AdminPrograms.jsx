@@ -278,7 +278,7 @@ export default function AdminPrograms() {
 
       if (savedProgram.status === 'closed') {
         setRecentlyClosed((current) => [...current.filter((program) => program._id !== savedProgram._id), savedProgram]);
-        setMessage(isCreating ? 'Program created as closed. It is shown for this session only.' : 'Program updated and remains shown as recently closed for this session only.');
+        setMessage(isCreating ? 'Program created as closed. It is no longer accepting applications.' : 'Program updated and is no longer accepting applications.');
       } else {
         setRecentlyClosed((current) => current.filter((program) => program._id !== savedProgram._id));
         setMessage(isCreating ? 'Program created successfully.' : 'Program updated successfully.');
@@ -306,7 +306,7 @@ export default function AdminPrograms() {
 
       if (nextStatus === 'closed') {
         setRecentlyClosed((current) => [...current.filter((item) => item._id !== updatedProgram._id), updatedProgram]);
-        setMessage('Program closed. It remains visible as recently closed until this page is refreshed.');
+        setMessage('Program closed. It is no longer accepting applications.');
       } else {
         setRecentlyClosed((current) => current.filter((item) => item._id !== updatedProgram._id));
         setMessage('Program reopened successfully.');
@@ -356,7 +356,7 @@ export default function AdminPrograms() {
 
       {message && <p className="mt-6 rounded-lg border border-green-200 bg-green-50 p-3 text-sm text-green-800" role="status">{message}</p>}
       {loadError && <div className="mt-6 flex items-center justify-between gap-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700" role="alert"><span>{loadError}</span><button className="min-h-10 shrink-0 rounded-lg border border-red-300 px-3 font-semibold" type="button" onClick={loadPrograms}>Retry</button></div>}
-      {recentlyClosed.length > 0 && <p className="mt-6 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">Recently closed programs are shown only for this open page so they can be reopened. The API does not return closed programs after a page refresh.</p>}
+      {recentlyClosed.length > 0 && <p className="mt-6 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">This program was recently closed and is no longer accepting applications. Refresh the page to update the program list.</p>}
 
       <section className="mt-6 overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm" aria-labelledby="program-list-heading">
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-gray-200 px-5 py-4 sm:px-6">
