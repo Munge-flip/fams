@@ -16,7 +16,7 @@ const transitions = {
 };
 
 const applicationPopulation = [
-  { path: 'applicant', select: 'name email role studentID barangay contactNo verificationStatus verificationRemarks' },
+  { path: 'applicant', select: 'name email role studentID barangay contactNo' },
   { path: 'program' },
   { path: 'documents' },
 ];
@@ -191,35 +191,29 @@ const cancelApplication = asyncHandler(async (req, res) => {
   await application.deleteOne();
   return res.status(200).json({ success: true, data: { message: 'Application cancelled successfully.' } });
 });
-const verifyApplication = asyncHandler(async (req, res) => {
-  const { status, remarks } = req.body;
-  if (!['pending', 'verified', 'needs_correction'].includes(status)) {
-    return res.status(400).json({ success: false, message: 'Invalid verification status.' });
-  }
-  if (status === 'needs_correction' && (typeof remarks !== 'string' || !remarks.trim())) {
-    return res.status(400).json({ success: false, message: 'Remarks are required when requesting profile correction.' });
-  }
-  const application = await Application.findById(req.params.id);
-  if (!application) return res.status(404).json({ success: false, message: 'Application not found.' });
-  if (!application.applicant) return res.status(400).json({ success: false, message: 'This application has no linked beneficiary.' });
-  const user = await User.findById(application.applicant);
-  if (!user) return res.status(404).json({ success: false, message: 'The linked beneficiary account could not be found.' });
-  user.verificationStatus = status;
-  user.verificationRemarks = typeof remarks === 'string' ? remarks.trim() : '';
-  await user.save();
-  res.status(200).json({ success: true, data: user });
-});
 
-const scheduleRelease = asyncHandler(async (req, res) => {
-  const { amount, date, timeStart, timeEnd, location, instructions } = req.body;
-  if (amount === undefined || amount < 0) return res.status(400).json({ success: false, message: 'Invalid amount.' });
-  if (!date || !timeStart || !timeEnd || !location) return res.status(400).json({ success: false, message: 'All release fields are required.' });
+const updateReleaseAmount = asyncHandler(async (req, res) => {
+  if (!isValidObjectId(req.params.id)) {
+    return res.status(400).json({ success: false, message: 'Invalid application identifier.' });
+  }
+
+  const { amount } = req.body || {};
+  if (typeof amount !== 'number' || !Number.isFinite(amount) || amount < 0) {
+    return res.status(400).json({ success: false, message: 'Release amount must be a non-negative number.' });
+  }
+
   const application = await Application.findById(req.params.id);
-  if (!application) return res.status(404).json({ success: false, message: 'Application not found.' });
-  if (application.status !== 'approved') return res.status(400).json({ success: false, message: 'Only approved applications can be scheduled.' });
-  application.releaseDetails = { amount, date, timeStart, timeEnd, location, instructions };
+  if (!application) {
+    return res.status(404).json({ success: false, message: 'Application not found.' });
+  }
+
+  application.releaseDetails = {
+    ...application.releaseDetails,
+    amount: Math.round(amount * 100) / 100,
+  };
   await application.save();
-  res.status(200).json({ success: true, data: application });
+
+  return res.status(200).json({ success: true, data: application });
 });
 
 module.exports = {
@@ -228,6 +222,5 @@ module.exports = {
   getApplication,
   listApplications,
   updateApplicationStatus,
-  verifyApplication,
-  scheduleRelease,
+  updateReleaseAmount,
 };

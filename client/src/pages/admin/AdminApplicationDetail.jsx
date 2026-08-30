@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { getApplication, updateApplicationStatus, verifyApplication, scheduleRelease } from '../../services/applicationService';
+import { getApplication, updateApplicationStatus, updateReleaseAmount } from '../../services/applicationService';
 
 const documentLabels = {
   valid_id: 'Valid ID',
@@ -24,13 +24,6 @@ const statusLabel = (status) => ({
   denied: 'Denied',
   cash_released: 'Cash released',
 }[status] || status);
-
-const verificationStatusLabel = (status) => ({
-  incomplete: 'Incomplete',
-  pending: 'Pending',
-  verified: 'Verified',
-  needs_correction: 'Needs correction',
-}[status] || status || 'Not submitted');
 
 const transitions = {
   submitted: [{ status: 'under_review', label: 'Mark under review' }],
@@ -61,40 +54,37 @@ export default function AdminApplicationDetail() {
   const [success, setSuccess] = useState('');
   const [savingRemarks, setSavingRemarks] = useState(false);
   const [changingStatus, setChangingStatus] = useState('');
-  const [verification, setVerification] = useState({ status: '', remarks: '' });
-  const [release, setRelease] = useState({ amount: 0, date: '', timeStart: '', timeEnd: '', location: '', instructions: '' });
-  const [isProcessing, setIsProcessing] = useState(false);
+  const [releaseAmount, setReleaseAmount] = useState('');
+  const [savingAmount, setSavingAmount] = useState(false);
 
   useEffect(() => {
     if (application) {
-      setVerification({ status: application.applicant.verificationStatus || 'pending', remarks: application.applicant.verificationRemarks || '' });
-      setRelease(application.releaseDetails || { amount: 0, date: '', timeStart: '', timeEnd: '', location: '', instructions: '' });
+      const currentAmount = application.releaseDetails?.amount;
+      setReleaseAmount(currentAmount === undefined || currentAmount === null ? '' : String(currentAmount));
     }
   }, [application]);
 
-  const handleVerify = async () => {
-    if (verification.status === 'needs_correction' && !String(verification.remarks || '').trim()) {
-      setError('Please provide a reason for requesting correction.');
+  const handleReleaseAmount = async () => {
+    const amount = Number(releaseAmount);
+    if (!releaseAmount.trim() || !Number.isFinite(amount) || amount < 0) {
+      setError('Release amount must be a non-negative number.');
       return;
     }
     try {
-      setIsProcessing(true);
+      setSavingAmount(true);
       setError('');
-      await verifyApplication(id, verification);
-      setSuccess('Verification updated.');
-      await loadApplication();
-    } catch (e) { setError(e.message); } finally { setIsProcessing(false); }
+      setSuccess('');
+      const response = await updateReleaseAmount(id, amount);
+      setApplication(response.data);
+      setReleaseAmount(String(response.data.releaseDetails?.amount ?? ''));
+      setSuccess('Release amount updated.');
+    } catch (requestErrorValue) {
+      setError(requestError(requestErrorValue, 'Unable to update the release amount.'));
+    } finally {
+      setSavingAmount(false);
+    }
   };
 
-  const handleSchedule = async () => {
-    try {
-      setIsProcessing(true);
-      setError('');
-      await scheduleRelease(id, release);
-      setSuccess('Release scheduled.');
-      await loadApplication();
-    } catch (e) { setError(e.message); } finally { setIsProcessing(false); }
-  };
   const loadApplication = async () => {
     try {
       setLoading(true);
@@ -186,43 +176,14 @@ export default function AdminApplicationDetail() {
         <p className="mt-1 text-sm text-gray-600">Only valid next steps are available for this application.</p>
         {availableTransitions.length > 0 ? <div className="mt-4 flex flex-wrap gap-3">{availableTransitions.map((transition) => <button className={`min-h-11 rounded-lg px-4 text-sm font-bold text-white disabled:cursor-not-allowed disabled:opacity-60 ${transition.status === 'denied' ? 'bg-red-700' : 'bg-black'}`} key={transition.status} type="button" onClick={() => changeStatus(transition.status, transition.label)} disabled={isSaving}>{changingStatus === transition.status ? 'Saving…' : transition.label}</button>)}</div> : <p className="mt-4 rounded-lg bg-gray-100 p-3 text-sm text-gray-700">This status is final. No further status transitions are available.</p>}
       </section>
-      <section className="mt-5 rounded-xl border border-gray-200 bg-white p-5 shadow-sm sm:p-6" aria-labelledby="verification-heading">
-        <h2 className="text-lg font-bold text-black" id="verification-heading">Beneficiary Verification</h2>
-        <p className="mt-1 text-sm text-gray-600">This verifies the beneficiary's profile information. It does not approve or deny this application.</p>
-        {applicant.verificationStatus && (
-          <div className="mt-4 space-y-1 rounded-lg bg-gray-50 p-3 text-sm">
-            <p><span className="font-semibold text-gray-500">Current profile verification status:</span> <span className="font-semibold text-gray-800">{verificationStatusLabel(applicant.verificationStatus)}</span></p>
-            {applicant.verificationRemarks && <p><span className="font-semibold text-gray-500">Current administrator remarks:</span> <span className="text-gray-800">{applicant.verificationRemarks}</span></p>}
-          </div>
-        )}
-        <div className="mt-4 space-y-3">
-          <select className="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm" value={verification.status} onChange={(e) => setVerification(v => ({...v, status: e.target.value}))}>
-            <option value="pending">Pending</option>
-            <option value="verified">Verified</option>
-            <option value="needs_correction">Needs correction</option>
-          </select>
-          <textarea className="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm" placeholder="Remarks" value={verification.remarks} onChange={(e) => setVerification(v => ({...v, remarks: e.target.value}))} />
-          <button className="min-h-10 rounded-lg bg-black px-4 text-sm font-bold text-white" onClick={handleVerify} disabled={isProcessing}>Save verification</button>
+      <section className="mt-5 rounded-xl border border-gray-200 bg-white p-5 shadow-sm sm:p-6" aria-labelledby="release-amount-heading">
+        <h2 className="text-lg font-bold text-black" id="release-amount-heading">Application release amount</h2>
+        <p className="mt-1 text-sm text-gray-600">Set the cash assistance amount specific to this application. This does not schedule the release or change the application status.</p>
+        <div className="mt-4 flex flex-wrap items-center gap-3">
+          <label className="sr-only" htmlFor="release-amount-input">Release amount</label>
+          <input className="block min-h-11 w-48 rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-black focus:ring-2 focus:ring-black/10" id="release-amount-input" type="number" min="0" step="0.01" placeholder="Amount" value={releaseAmount} onChange={(e) => setReleaseAmount(e.target.value)} disabled={savingAmount} />
+          <button className="min-h-11 rounded-lg bg-black px-4 text-sm font-bold text-white disabled:cursor-not-allowed disabled:opacity-60" type="button" onClick={handleReleaseAmount} disabled={savingAmount}>{savingAmount ? 'Saving…' : 'Save amount'}</button>
         </div>
-      </section>
-
-      <section className="mt-5 rounded-xl border border-gray-200 bg-white p-5 shadow-sm sm:p-6" aria-labelledby="release-heading">
-        <h2 className="text-lg font-bold text-black" id="release-heading">Release Scheduling</h2>
-        {application.status === 'approved' ? (
-          <div className="mt-4 space-y-3">
-            <input className="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm" type="number" placeholder="Amount" value={release.amount} onChange={(e) => setRelease(r => ({...r, amount: Number(e.target.value)}))} />
-            <input className="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm" type="date" value={release.date ? new Date(release.date).toISOString().split('T')[0] : ''} onChange={(e) => setRelease(r => ({...r, date: e.target.value}))} />
-            <div className="flex gap-2">
-              <input className="flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm" type="time" value={release.timeStart} onChange={(e) => setRelease(r => ({...r, timeStart: e.target.value}))} />
-              <input className="flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm" type="time" value={release.timeEnd} onChange={(e) => setRelease(r => ({...r, timeEnd: e.target.value}))} />
-            </div>
-            <input className="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm" placeholder="Location" value={release.location} onChange={(e) => setRelease(r => ({...r, location: e.target.value}))} />
-            <textarea className="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm" placeholder="Instructions" value={release.instructions} onChange={(e) => setRelease(r => ({...r, instructions: e.target.value}))} />
-            <button className="min-h-10 rounded-lg bg-black px-4 text-sm font-bold text-white" onClick={handleSchedule} disabled={isProcessing}>Schedule release</button>
-          </div>
-        ) : (
-          <p className="mt-4 text-sm text-gray-600">{application.status === 'cash_released' ? 'Release already completed.' : 'Scheduling is only available for approved applications.'}</p>
-        )}
       </section>
 
       <section className="mt-5 rounded-xl border border-gray-200 bg-white p-5 shadow-sm sm:p-6" aria-labelledby="remarks-heading">

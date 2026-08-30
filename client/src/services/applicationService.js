@@ -25,12 +25,7 @@ export const updateApplicationStatus = async (id, payload) => {
   return response.data;
 };
 
-export const verifyApplication = async (id, data) => {
-  const response = await api.patch(`/applications/${id}/verify`, data);
-  return response.data;
-};
-
-export const scheduleRelease = async (id, data) => {
-  const response = await api.patch(`/applications/${id}/schedule`, data);
+export const updateReleaseAmount = async (id, amount) => {
+  const response = await api.patch(`/applications/${id}/release-amount`, { amount });
   return response.data;
 };
