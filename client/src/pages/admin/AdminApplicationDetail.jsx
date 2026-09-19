@@ -30,7 +30,7 @@ const transitions = {
   under_review: [{ status: 'approved', label: 'Approve' }, { status: 'denied', label: 'Deny' }],
   approved: [{ status: 'cash_released', label: 'Mark cash released' }],
   denied: [],
-  cash_released: [],
+  cash_released: [{ status: 'approved', label: 'Undo cash release' }],
 };
 
 const formatDate = (value) => value ? new Intl.DateTimeFormat('en-PH', {

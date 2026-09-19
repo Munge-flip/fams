@@ -16,6 +16,7 @@ import AdminApplications from './pages/admin/AdminApplications';
 import AdminApplicationDetail from './pages/admin/AdminApplicationDetail';
 import AdminUsers from './pages/admin/AdminUsers';
 import AdminUserDetail from './pages/admin/AdminUserDetail';
+import AdminProgramBeneficiaries from './pages/admin/AdminProgramBeneficiaries';
 import AdminSectionPlaceholder from './pages/admin/AdminSectionPlaceholder';
 
 export default function App() {
@@ -39,6 +40,7 @@ export default function App() {
         <Route path="/admin" element={<AdminLayout />}>
           <Route index element={<AdminDashboard />} />
           <Route path="programs" element={<AdminPrograms />} />
+          <Route path="programs/:programId/beneficiaries" element={<AdminProgramBeneficiaries />} />
           <Route path="applications" element={<AdminApplications />} />
           <Route path="applications/:id" element={<AdminApplicationDetail />} />
           <Route path="users" element={<AdminUsers />} />

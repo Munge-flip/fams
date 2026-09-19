@@ -1,9 +1,12 @@
 const User = require('../models/User');
+const AidProgram = require('../models/AidProgram');
+const Application = require('../models/Application');
 const asyncHandler = require('../utils/asyncHandler');
 const { isValidObjectId } = require('../utils/validation');
 
 const beneficiaryRoles = ['student', 'resident'];
 const verificationStatuses = ['verified', 'needs_correction'];
+const acceptedApplicationStatuses = ['approved', 'cash_released'];
 
 const toSafeUser = (user) => {
   const { password, ...safeUser } = user.toObject();
@@ -57,4 +60,22 @@ const verifyUser = asyncHandler(async (req, res) => {
   return res.status(200).json({ success: true, data: toSafeUser(user) });
 });
 
-module.exports = { getUser, listUsers, verifyUser };
+const listProgramBeneficiaries = asyncHandler(async (req, res) => {
+  if (!isValidObjectId(req.params.id)) {
+    return res.status(400).json({ success: false, message: 'Invalid program identifier.' });
+  }
+
+  const program = await AidProgram.findById(req.params.id);
+  if (!program) {
+    return res.status(404).json({ success: false, message: 'Aid program not found.' });
+  }
+
+  // Accepted beneficiaries stay listed after their assistance is marked released.
+  const beneficiaries = await Application.find({ program: program._id, status: { $in: acceptedApplicationStatuses } })
+    .sort({ submittedAt: 1 })
+    .populate('applicant', 'name email studentID barangay contactNo');
+
+  return res.status(200).json({ success: true, data: { program, beneficiaries } });
+});
+
+module.exports = { getUser, listProgramBeneficiaries, listUsers, verifyUser };

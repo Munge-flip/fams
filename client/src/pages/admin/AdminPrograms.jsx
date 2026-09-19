@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
 import {
   createProgram,
   deleteProgram,
@@ -455,58 +456,61 @@ export default function AdminPrograms() {
       {loadError && <div className="mt-6 flex items-center justify-between gap-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700" role="alert"><span>{loadError}</span><button className="min-h-10 shrink-0 rounded-lg border border-red-300 px-3 font-semibold" type="button" onClick={loadPrograms}>Retry</button></div>}
       {recentlyClosed.length > 0 && <p className="mt-6 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">This program was recently closed and is no longer accepting applications. Refresh the page to update the program list.</p>}
 
-      <section className="mt-6 overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm" aria-labelledby="program-list-heading">
-        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-gray-200 px-5 py-4 sm:px-6">
-          <div>
-            <h2 className="text-lg font-bold text-black" id="program-list-heading">Program list</h2>
-            <p className="mt-1 text-sm text-gray-600">Manage the financial-assistance programs available to applicants.</p>
+      {!formMode && (
+        <section className="mt-6 overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm" aria-labelledby="program-list-heading">
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-gray-200 px-5 py-4 sm:px-6">
+            <div>
+              <h2 className="text-lg font-bold text-black" id="program-list-heading">Program list</h2>
+              <p className="mt-1 text-sm text-gray-600">Manage the financial-assistance programs available to applicants.</p>
+            </div>
+            <button className="min-h-10 rounded-lg border border-gray-300 px-3 text-sm font-semibold text-gray-800 disabled:cursor-not-allowed disabled:opacity-60" type="button" onClick={loadPrograms} disabled={loading}>Refresh</button>
           </div>
-          <button className="min-h-10 rounded-lg border border-gray-300 px-3 text-sm font-semibold text-gray-800 disabled:cursor-not-allowed disabled:opacity-60" type="button" onClick={loadPrograms} disabled={loading}>Refresh</button>
-        </div>
 
-        {loading && <p className="p-6 text-sm text-gray-600" role="status">Loading programs…</p>}
-        {!loading && !loadError && visiblePrograms.length === 0 && <p className="p-6 text-sm text-gray-600">No active programs are available. Create a program to get started.</p>}
-        {!loading && visiblePrograms.length > 0 && (
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200 text-left">
-              <thead className="bg-gray-50 text-xs uppercase tracking-wide text-gray-500">
-                <tr>
-                  <th className="px-5 py-3 font-semibold sm:px-6" scope="col">Title</th>
-                  <th className="px-5 py-3 font-semibold" scope="col">Category</th>
-                  <th className="px-5 py-3 font-semibold" scope="col">Assistance</th>
-                  <th className="px-5 py-3 font-semibold" scope="col">Deadline</th>
-                  <th className="px-5 py-3 font-semibold" scope="col">Slots</th>
-                  <th className="px-5 py-3 font-semibold" scope="col">Status</th>
-                  <th className="px-5 py-3 font-semibold sm:px-6" scope="col">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100 text-sm">
-                {visiblePrograms.map((program) => {
-                  const busy = actionId === program._id;
-                  const isClosed = program.status === 'closed';
-                  return (
-                    <tr key={program._id} className={isClosed ? 'bg-amber-50/50' : 'bg-white'}>
-                      <td className="max-w-xs px-5 py-4 font-semibold text-black sm:px-6">{program.title}</td>
-                      <td className="px-5 py-4 text-gray-700">{categoryLabels[program.category] || program.category}</td>
-                      <td className="whitespace-nowrap px-5 py-4 text-gray-700">{formatAssistance(program)}</td>
-                      <td className="whitespace-nowrap px-5 py-4 text-gray-700">{formatDate(program.deadline)}</td>
-                      <td className={`whitespace-nowrap px-5 py-4 ${isAtCapacity(program) ? 'font-semibold text-amber-700' : 'text-gray-700'}`} title={`${approvedCountOf(program)} approved beneficiaries out of ${slotLimitOf(program) ?? 'an unspecified number of'} slots`}>{formatSlots(program)}</td>
-                      <td className="px-5 py-4"><span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-bold ${isClosed ? 'bg-gray-200 text-gray-800' : 'bg-green-100 text-green-800'}`}>{isClosed ? 'Closed' : 'Active'}</span></td>
-                      <td className="px-5 py-4 sm:px-6">
-                        <div className="flex min-w-64 flex-wrap gap-2">
-                          <button className="min-h-9 rounded-lg border border-gray-300 px-3 text-xs font-bold text-gray-800 disabled:cursor-not-allowed disabled:opacity-60" type="button" onClick={() => handleEdit(program._id)} disabled={busy || submitting}>{busy ? 'Loading…' : 'Edit'}</button>
-                          <button className="min-h-9 rounded-lg border border-gray-300 px-3 text-xs font-bold text-gray-800 disabled:cursor-not-allowed disabled:opacity-60" type="button" onClick={() => handleStatusChange(program)} disabled={busy || submitting}>{busy ? 'Saving…' : (isClosed ? 'Reopen' : 'Close')}</button>
-                          <button className="min-h-9 rounded-lg border border-red-300 px-3 text-xs font-bold text-red-700 disabled:cursor-not-allowed disabled:opacity-60" type="button" onClick={() => handleDelete(program)} disabled={busy || submitting}>{busy ? 'Working…' : 'Delete'}</button>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </section>
+          {loading && <p className="p-6 text-sm text-gray-600" role="status">Loading programs…</p>}
+          {!loading && !loadError && visiblePrograms.length === 0 && <p className="p-6 text-sm text-gray-600">No active programs are available. Create a program to get started.</p>}
+          {!loading && visiblePrograms.length > 0 && (
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200 text-left">
+                <thead className="bg-gray-50 text-xs uppercase tracking-wide text-gray-500">
+                  <tr>
+                    <th className="px-5 py-3 font-semibold sm:px-6" scope="col">Title</th>
+                    <th className="px-5 py-3 font-semibold" scope="col">Category</th>
+                    <th className="px-5 py-3 font-semibold" scope="col">Assistance</th>
+                    <th className="px-5 py-3 font-semibold" scope="col">Deadline</th>
+                    <th className="px-5 py-3 font-semibold" scope="col">Slots</th>
+                    <th className="px-5 py-3 font-semibold" scope="col">Status</th>
+                    <th className="px-5 py-3 font-semibold sm:px-6" scope="col">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100 text-sm">
+                  {visiblePrograms.map((program) => {
+                    const busy = actionId === program._id;
+                    const isClosed = program.status === 'closed';
+                    return (
+                      <tr key={program._id} className={isClosed ? 'bg-amber-50/50' : 'bg-white'}>
+                        <td className="max-w-xs px-5 py-4 font-semibold text-black sm:px-6">{program.title}</td>
+                        <td className="px-5 py-4 text-gray-700">{categoryLabels[program.category] || program.category}</td>
+                        <td className="whitespace-nowrap px-5 py-4 text-gray-700">{formatAssistance(program)}</td>
+                        <td className="whitespace-nowrap px-5 py-4 text-gray-700">{formatDate(program.deadline)}</td>
+                        <td className={`whitespace-nowrap px-5 py-4 ${isAtCapacity(program) ? 'font-semibold text-amber-700' : 'text-gray-700'}`} title={`${approvedCountOf(program)} approved beneficiaries out of ${slotLimitOf(program) ?? 'an unspecified number of'} slots`}>{formatSlots(program)}</td>
+                        <td className="px-5 py-4"><span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-bold ${isClosed ? 'bg-gray-200 text-gray-800' : 'bg-green-100 text-green-800'}`}>{isClosed ? 'Closed' : 'Active'}</span></td>
+                        <td className="px-5 py-4 sm:px-6">
+                          <div className="flex min-w-64 flex-wrap gap-2">
+                            <button className="min-h-9 rounded-lg border border-gray-300 px-3 text-xs font-bold text-gray-800 disabled:cursor-not-allowed disabled:opacity-60" type="button" onClick={() => handleEdit(program._id)} disabled={busy || submitting}>{busy ? 'Loading…' : 'Edit'}</button>
+                            <button className="min-h-9 rounded-lg border border-gray-300 px-3 text-xs font-bold text-gray-800 disabled:cursor-not-allowed disabled:opacity-60" type="button" onClick={() => handleStatusChange(program)} disabled={busy || submitting}>{busy ? 'Saving…' : (isClosed ? 'Reopen' : 'Close')}</button>
+                            <Link className="inline-flex min-h-9 items-center rounded-lg border border-gray-300 px-3 text-xs font-bold text-gray-800" to={`/admin/programs/${program._id}/beneficiaries`}>Beneficiaries</Link>
+                            <button className="min-h-9 rounded-lg border border-red-300 px-3 text-xs font-bold text-red-700 disabled:cursor-not-allowed disabled:opacity-60" type="button" onClick={() => handleDelete(program)} disabled={busy || submitting}>{busy ? 'Working…' : 'Delete'}</button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </section>
+      )}
     </>
   );
 }

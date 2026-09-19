@@ -10,6 +10,11 @@ export const getProgramById = async (id) => {
   return response.data;
 };
 
+export const getProgramBeneficiaries = async (id) => {
+  const response = await api.get(`/admin/programs/${id}/beneficiaries`);
+  return response.data;
+};
+
 export const createProgram = async (program) => {
   const response = await api.post('/programs', program);
   return response.data;

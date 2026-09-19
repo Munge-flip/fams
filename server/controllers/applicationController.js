@@ -13,7 +13,7 @@ const transitions = {
   under_review: ['approved', 'denied'],
   approved: ['cash_released'],
   denied: [],
-  cash_released: [],
+  cash_released: ['approved'],
 };
 
 const applicationPopulation = [
