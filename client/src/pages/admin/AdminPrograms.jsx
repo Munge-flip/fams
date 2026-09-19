@@ -64,6 +64,27 @@ const formatDate = (date) => new Intl.DateTimeFormat('en-PH', {
   year: 'numeric',
 }).format(new Date(date));
 
+const approvedCountOf = (program) => (Number.isInteger(program.approvedCount) && program.approvedCount >= 0 ? program.approvedCount : 0);
+
+const slotLimitOf = (program) => {
+  const { slots } = program;
+  if (slots === null || slots === undefined || slots === '') {
+    return null;
+  }
+  const limit = Number(slots);
+  return Number.isInteger(limit) && limit >= 0 ? limit : null;
+};
+
+const formatSlots = (program) => {
+  const limit = slotLimitOf(program);
+  return `${approvedCountOf(program)} / ${limit === null ? '—' : limit}`;
+};
+
+const isAtCapacity = (program) => {
+  const limit = slotLimitOf(program);
+  return limit !== null && limit > 0 && approvedCountOf(program) >= limit;
+};
+
 const toDateInput = (date) => (date ? new Date(date).toISOString().slice(0, 10) : '');
 
 const toFormValues = (program) => ({
@@ -469,7 +490,7 @@ export default function AdminPrograms() {
                       <td className="px-5 py-4 text-gray-700">{categoryLabels[program.category] || program.category}</td>
                       <td className="whitespace-nowrap px-5 py-4 text-gray-700">{formatAssistance(program)}</td>
                       <td className="whitespace-nowrap px-5 py-4 text-gray-700">{formatDate(program.deadline)}</td>
-                      <td className="px-5 py-4 text-gray-700">{program.slots}</td>
+                      <td className={`whitespace-nowrap px-5 py-4 ${isAtCapacity(program) ? 'font-semibold text-amber-700' : 'text-gray-700'}`} title={`${approvedCountOf(program)} approved beneficiaries out of ${slotLimitOf(program) ?? 'an unspecified number of'} slots`}>{formatSlots(program)}</td>
                       <td className="px-5 py-4"><span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-bold ${isClosed ? 'bg-gray-200 text-gray-800' : 'bg-green-100 text-green-800'}`}>{isClosed ? 'Closed' : 'Active'}</span></td>
                       <td className="px-5 py-4 sm:px-6">
                         <div className="flex min-w-64 flex-wrap gap-2">

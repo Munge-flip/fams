@@ -182,9 +182,27 @@ const normalizeProgramFields = (body) => {
   return normalized;
 };
 
+const approvedStatus = 'approved';
+
+// Approved beneficiaries are derived from the applications themselves, so the count can never drift.
+const withApprovedCount = async (program) => ({
+  ...program.toObject(),
+  approvedCount: await Application.countDocuments({ program: program._id, status: approvedStatus }),
+});
+
+const approvedCountsFor = async (programIds) => {
+  const rows = await Application.aggregate([
+    { $match: { program: { $in: programIds }, status: approvedStatus } },
+    { $group: { _id: '$program', count: { $sum: 1 } } },
+  ]);
+  return new Map(rows.map((row) => [String(row._id), row.count]));
+};
+
 const listPrograms = asyncHandler(async (req, res) => {
   const programs = await AidProgram.find({ status: 'active' });
-  return res.status(200).json({ success: true, data: programs });
+  const counts = programs.length ? await approvedCountsFor(programs.map((program) => program._id)) : new Map();
+  const data = programs.map((program) => ({ ...program.toObject(), approvedCount: counts.get(String(program._id)) || 0 }));
+  return res.status(200).json({ success: true, data });
 });
 
 const getProgram = asyncHandler(async (req, res) => {
@@ -197,7 +215,7 @@ const getProgram = asyncHandler(async (req, res) => {
     return res.status(404).json({ success: false, message: 'Aid program not found.' });
   }
 
-  return res.status(200).json({ success: true, data: program });
+  return res.status(200).json({ success: true, data: await withApprovedCount(program) });
 });
 
 const createProgram = asyncHandler(async (req, res) => {
@@ -212,7 +230,8 @@ const createProgram = asyncHandler(async (req, res) => {
     createdBy: req.user._id,
   });
 
-  return res.status(201).json({ success: true, data: program });
+  // A program that was just created cannot have applications yet.
+  return res.status(201).json({ success: true, data: { ...program.toObject(), approvedCount: 0 } });
 });
 
 const updateProgram = asyncHandler(async (req, res) => {
@@ -235,7 +254,7 @@ const updateProgram = asyncHandler(async (req, res) => {
     return res.status(404).json({ success: false, message: 'Aid program not found.' });
   }
 
-  return res.status(200).json({ success: true, data: program });
+  return res.status(200).json({ success: true, data: await withApprovedCount(program) });
 });
 
 const deleteProgram = asyncHandler(async (req, res) => {
