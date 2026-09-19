@@ -39,7 +39,7 @@ const formatDate = (value) => value ? new Intl.DateTimeFormat('en-PH', {
   year: 'numeric',
 }).format(new Date(value)) : 'Not available';
 
-const requestError = (error, fallback) => error.response?.data?.message || error.message || fallback;
+const requestError = (error, fallback) => (error.response?.status >= 500 ? fallback : error.response?.data?.message || fallback);
 
 function DataRow({ label, value }) {
   return <div><dt className="font-semibold text-gray-500">{label}</dt><dd className="mt-1 text-gray-800">{value || 'Not available'}</dd></div>;
@@ -67,7 +67,7 @@ export default function AdminApplicationDetail() {
   const handleReleaseAmount = async () => {
     const amount = Number(releaseAmount);
     if (!releaseAmount.trim() || !Number.isFinite(amount) || amount < 0) {
-      setError('Release amount must be a non-negative number.');
+      setError('Enter an amount of 0 or more.');
       return;
     }
     try {
@@ -79,7 +79,7 @@ export default function AdminApplicationDetail() {
       setReleaseAmount(String(response.data.releaseDetails?.amount ?? ''));
       setSuccess('Release amount updated.');
     } catch (requestErrorValue) {
-      setError(requestError(requestErrorValue, 'Unable to update the release amount.'));
+      setError(requestError(requestErrorValue, 'Unable to update the release amount. Please try again.'));
     } finally {
       setSavingAmount(false);
     }
@@ -94,7 +94,7 @@ export default function AdminApplicationDetail() {
       setRemarks(response.data.remarks || '');
     } catch (requestErrorValue) {
       setApplication(null);
-      setError(requestError(requestErrorValue, 'Unable to load this application.'));
+      setError(requestError(requestErrorValue, 'Unable to load this application. Please try again.'));
     } finally {
       setLoading(false);
     }
@@ -119,7 +119,7 @@ export default function AdminApplicationDetail() {
       setRemarks(response.data.remarks || '');
       setSuccess('Remarks saved successfully.');
     } catch (requestErrorValue) {
-      setError(requestError(requestErrorValue, 'Unable to save remarks.'));
+      setError(requestError(requestErrorValue, 'Unable to save remarks. Please try again.'));
     } finally {
       setSavingRemarks(false);
     }
@@ -141,7 +141,7 @@ export default function AdminApplicationDetail() {
       setRemarks(response.data.remarks || '');
       setSuccess(`Application status updated to ${statusLabel(nextStatus)}.`);
     } catch (requestErrorValue) {
-      setError(requestError(requestErrorValue, 'Unable to update this application status.'));
+      setError(requestError(requestErrorValue, 'Unable to update this application status. Please try again.'));
     } finally {
       setChangingStatus('');
     }
@@ -174,7 +174,7 @@ export default function AdminApplicationDetail() {
       <section className="mt-6 rounded-xl border border-gray-200 bg-white p-5 shadow-sm sm:p-6" aria-labelledby="status-management-heading">
         <h2 className="text-lg font-bold text-black" id="status-management-heading">Status management</h2>
         <p className="mt-1 text-sm text-gray-600">Only valid next steps are available for this application.</p>
-        {availableTransitions.length > 0 ? <div className="mt-4 flex flex-wrap gap-3">{availableTransitions.map((transition) => <button className={`min-h-11 rounded-lg px-4 text-sm font-bold text-white disabled:cursor-not-allowed disabled:opacity-60 ${transition.status === 'denied' ? 'bg-red-700' : 'bg-black'}`} key={transition.status} type="button" onClick={() => changeStatus(transition.status, transition.label)} disabled={isSaving}>{changingStatus === transition.status ? 'Saving…' : transition.label}</button>)}</div> : <p className="mt-4 rounded-lg bg-gray-100 p-3 text-sm text-gray-700">This status is final. No further status transitions are available.</p>}
+        {availableTransitions.length > 0 ? <div className="mt-4 flex flex-wrap gap-3">{availableTransitions.map((transition) => <button className={`min-h-11 rounded-lg px-4 text-sm font-bold text-white disabled:cursor-not-allowed disabled:opacity-60 ${transition.status === 'denied' ? 'bg-red-700' : 'bg-black'}`} key={transition.status} type="button" onClick={() => changeStatus(transition.status, transition.label)} disabled={isSaving}>{changingStatus === transition.status ? 'Saving…' : transition.label}</button>)}</div> : <p className="mt-4 rounded-lg bg-gray-100 p-3 text-sm text-gray-700">This status is final. No further updates are available.</p>}
       </section>
       <section className="mt-5 rounded-xl border border-gray-200 bg-white p-5 shadow-sm sm:p-6" aria-labelledby="release-amount-heading">
         <h2 className="text-lg font-bold text-black" id="release-amount-heading">Application release amount</h2>
@@ -188,7 +188,7 @@ export default function AdminApplicationDetail() {
 
       <section className="mt-5 rounded-xl border border-gray-200 bg-white p-5 shadow-sm sm:p-6" aria-labelledby="remarks-heading">
         <h2 className="text-lg font-bold text-black" id="remarks-heading">Administrator remarks</h2>
-        <p className="mt-1 text-sm text-gray-600">Remarks are visible to the applicant. Saving uses the current application status as required by the API.</p>
+        <p className="mt-1 text-sm text-gray-600">Remarks are visible to the applicant. Saving remarks keeps the current application status.</p>
         <label className="mt-4 block" htmlFor="admin-remarks"><span className="sr-only">Administrator remarks</span><textarea className="block min-h-28 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-black focus:ring-2 focus:ring-black/10" id="admin-remarks" value={remarks} onChange={(event) => setRemarks(event.target.value)} disabled={isSaving} /></label>
         <button className="mt-4 min-h-11 rounded-lg bg-black px-4 text-sm font-bold text-white disabled:cursor-not-allowed disabled:opacity-60" type="button" onClick={saveRemarks} disabled={isSaving}>{savingRemarks ? 'Saving remarks…' : 'Save remarks'}</button>
       </section>

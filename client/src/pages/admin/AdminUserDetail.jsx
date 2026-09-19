@@ -11,8 +11,8 @@ const verificationClasses = {
 
 const verificationLabel = (status) => ({
   incomplete: 'Incomplete',
-  pending: 'Pending',
-  needs_correction: 'Needs correction',
+  pending: 'Awaiting verification',
+  needs_correction: 'Correction needed',
   verified: 'Verified',
 }[status] || status || 'Incomplete');
 
@@ -44,7 +44,7 @@ const calculateAge = (value) => {
   return age >= 0 ? age : '';
 };
 
-const requestError = (error, fallback) => error.response?.data?.message || error.message || fallback;
+const requestError = (error, fallback) => (error.response?.status >= 500 ? fallback : error.response?.data?.message || fallback);
 
 function DataRow({ label, value }) {
   return <div><dt className="font-semibold text-gray-500">{label}</dt><dd className="mt-1 text-gray-800">{value || 'Not provided'}</dd></div>;
@@ -84,7 +84,7 @@ export default function AdminUserDetail() {
       setUser(response.data);
     } catch (requestErrorValue) {
       setUser(null);
-      setError(requestError(requestErrorValue, 'Unable to load this beneficiary.'));
+      setError(requestError(requestErrorValue, 'Unable to load this beneficiary. Please try again.'));
     } finally {
       setLoading(false);
     }
@@ -108,7 +108,7 @@ export default function AdminUserDetail() {
       setAction((current) => ({ ...current, remarks: '' }));
       await loadUser();
     } catch (requestErrorValue) {
-      setError(requestError(requestErrorValue, 'Unable to update verification.'));
+      setError(requestError(requestErrorValue, 'Unable to update verification. Please try again.'));
     } finally {
       setIsProcessing(false);
     }
@@ -138,19 +138,19 @@ export default function AdminUserDetail() {
 
       <section className="mt-6 rounded-xl border border-gray-200 bg-white p-5 shadow-sm sm:p-6" aria-labelledby="verification-heading">
         <h2 className="text-lg font-bold text-black" id="verification-heading">Beneficiary Verification</h2>
-        <p className="mt-1 text-sm text-gray-600">This verifies the beneficiary's profile information. It does not approve or deny any application.</p>
+        <p className="mt-1 text-sm text-gray-600">Review the beneficiary's profile information. This does not approve or deny applications.</p>
         <div className="mt-4 space-y-1 rounded-lg bg-gray-50 p-3 text-sm">
-          <p><span className="font-semibold text-gray-500">Current profile verification status:</span> <span className="font-semibold text-gray-800">{verificationLabel(user.verificationStatus)}</span></p>
-          {user.verificationRemarks && <p><span className="font-semibold text-gray-500">Current administrator remarks:</span> <span className="text-gray-800">{user.verificationRemarks}</span></p>}
+          <p><span className="font-semibold text-gray-500">Verification status:</span> <span className="font-semibold text-gray-800">{verificationLabel(user.verificationStatus)}</span></p>
+          {user.verificationRemarks && <p><span className="font-semibold text-gray-500">Administrator remarks:</span> <span className="text-gray-800">{user.verificationRemarks}</span></p>}
         </div>
         <div className="mt-4 space-y-3">
           <select className="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm" value={action.status} onChange={(e) => setAction((current) => ({ ...current, status: e.target.value }))}>
-            <option value="">Select action</option>
-            <option value="verified">Verify</option>
-            <option value="needs_correction">Needs correction</option>
+            <option value="">Choose an action</option>
+            <option value="verified">Verified</option>
+            <option value="needs_correction">Correction needed</option>
           </select>
-          <textarea className="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm" placeholder="Remarks (required for needs correction)" value={action.remarks} onChange={(e) => setAction((current) => ({ ...current, remarks: e.target.value }))} />
-          <button className="min-h-10 rounded-lg bg-black px-4 text-sm font-bold text-white" onClick={handleVerify} disabled={isProcessing || !action.status}>Save verification</button>
+          <textarea className="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm" placeholder="Remarks (required if correction is needed)" value={action.remarks} onChange={(e) => setAction((current) => ({ ...current, remarks: e.target.value }))} />
+          <button className="min-h-10 rounded-lg bg-black px-4 text-sm font-bold text-white" onClick={handleVerify} disabled={isProcessing || !action.status}>Save decision</button>
         </div>
       </section>
 

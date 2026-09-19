@@ -11,8 +11,8 @@ const verificationClasses = {
 
 const verificationLabel = (status) => ({
   incomplete: 'Incomplete',
-  pending: 'Pending',
-  needs_correction: 'Needs correction',
+  pending: 'Awaiting verification',
+  needs_correction: 'Correction needed',
   verified: 'Verified',
 }[status] || status || 'Incomplete');
 
@@ -22,7 +22,7 @@ const formatDate = (value) => value ? new Intl.DateTimeFormat('en-PH', {
   year: 'numeric',
 }).format(new Date(value)) : 'Not available';
 
-const requestError = (error, fallback) => error.response?.data?.message || error.message || fallback;
+const requestError = (error, fallback) => (error.response?.status >= 500 ? fallback : error.response?.data?.message || fallback);
 
 export default function AdminUsers() {
   const [users, setUsers] = useState([]);
@@ -36,7 +36,7 @@ export default function AdminUsers() {
       const response = await getUsers();
       setUsers(response.data);
     } catch (requestErrorValue) {
-      setError(requestError(requestErrorValue, 'Unable to load users.'));
+      setError(requestError(requestErrorValue, 'Unable to load beneficiaries. Please try again.'));
     } finally {
       setLoading(false);
     }

@@ -28,7 +28,7 @@ const categoryLabels = {
   emergency: 'Emergency',
 };
 
-const errorMessage = (error, fallback) => error.response?.data?.message || error.message || fallback;
+const errorMessage = (error, fallback) => (error.response?.status >= 500 ? fallback : error.response?.data?.message || fallback);
 
 const formatDate = (date) => new Intl.DateTimeFormat('en-PH', {
   month: 'short',
@@ -59,7 +59,7 @@ function validateForm(form, includeStatus) {
   }
 
   const slots = Number(form.slots);
-  if (!form.slots.trim() || !Number.isInteger(slots) || slots < 0) return 'Slots must be an integer greater than or equal to 0.';
+  if (!form.slots.trim() || !Number.isInteger(slots) || slots < 0) return 'Enter a whole number of 0 or more.';
   if (!form.deadline || Number.isNaN(new Date(form.deadline).getTime())) return 'Deadline must be a valid date.';
   if (!Object.hasOwn(categoryLabels, form.category)) return 'Select a valid category.';
   if (includeStatus && !['active', 'closed'].includes(form.status)) return 'Select a valid status.';
@@ -185,7 +185,7 @@ export default function AdminPrograms() {
       const response = await getPrograms();
       setPrograms(response.data);
     } catch (error) {
-      setLoadError(errorMessage(error, 'Unable to load aid programs.'));
+      setLoadError(errorMessage(error, 'Unable to load programs. Please try again.'));
     } finally {
       setLoading(false);
     }
@@ -230,7 +230,7 @@ export default function AdminPrograms() {
       setEditingId(id);
       setFormMode('edit');
     } catch (error) {
-      setLoadError(errorMessage(error, 'Unable to load this program for editing.'));
+      setLoadError(errorMessage(error, 'Unable to load this program for editing. Please try again.'));
     } finally {
       setActionId('');
     }
@@ -287,7 +287,7 @@ export default function AdminPrograms() {
       closeForm();
       await loadPrograms();
     } catch (error) {
-      setFormError(errorMessage(error, isCreating ? 'Unable to create the program.' : 'Unable to update the program.'));
+      setFormError(errorMessage(error, isCreating ? 'Unable to create the program. Please try again.' : 'Unable to update the program. Please try again.'));
     } finally {
       setSubmitting(false);
     }
@@ -314,7 +314,7 @@ export default function AdminPrograms() {
 
       await loadPrograms();
     } catch (error) {
-      setLoadError(errorMessage(error, `Unable to ${action} this program.`));
+      setLoadError(errorMessage(error, `Unable to ${action} this program. Please try again.`));
     } finally {
       setActionId('');
     }
@@ -332,9 +332,9 @@ export default function AdminPrograms() {
       await loadPrograms();
     } catch (error) {
       if (error.response?.status === 409) {
-        setLoadError('Programs with applications cannot be deleted.');
+        setLoadError('This program can’t be deleted because it is being used by existing applications.');
       } else {
-        setLoadError(errorMessage(error, 'Unable to delete this program.'));
+        setLoadError(errorMessage(error, 'Unable to delete this program. Please try again.'));
       }
     } finally {
       setActionId('');
@@ -347,7 +347,7 @@ export default function AdminPrograms() {
         <div>
           <p className="text-sm font-semibold tracking-[0.16em] text-gray-500">ADMINISTRATION</p>
           <h1 className="mt-2 text-3xl font-bold tracking-tight text-black">Programs</h1>
-          <p className="mt-2 max-w-2xl text-sm leading-6 text-gray-600">Create and maintain financial-assistance programs available to applicants.</p>
+          <p className="mt-2 max-w-2xl text-sm leading-6 text-gray-600">Create and manage financial-assistance programs for applicants.</p>
         </div>
         <button className="min-h-11 rounded-lg bg-black px-4 text-sm font-bold text-white disabled:cursor-not-allowed disabled:opacity-60" type="button" onClick={handleCreate} disabled={submitting}>Create program</button>
       </section>
@@ -362,7 +362,7 @@ export default function AdminPrograms() {
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-gray-200 px-5 py-4 sm:px-6">
           <div>
             <h2 className="text-lg font-bold text-black" id="program-list-heading">Program list</h2>
-            <p className="mt-1 text-sm text-gray-600">Active programs are loaded from the current API.</p>
+            <p className="mt-1 text-sm text-gray-600">Manage the financial-assistance programs available to applicants.</p>
           </div>
           <button className="min-h-10 rounded-lg border border-gray-300 px-3 text-sm font-semibold text-gray-800 disabled:cursor-not-allowed disabled:opacity-60" type="button" onClick={loadPrograms} disabled={loading}>Refresh</button>
         </div>

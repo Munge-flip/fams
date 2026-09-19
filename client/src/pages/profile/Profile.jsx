@@ -15,6 +15,13 @@ const profileFields = [
   ['adminLevel', 'Admin level'],
 ];
 
+const verificationBadges = {
+  verified: { label: '✓ Verified', classes: 'bg-green-100 text-green-800' },
+  pending: { label: 'Awaiting verification', classes: 'bg-blue-100 text-blue-800' },
+  needs_correction: { label: 'Correction needed', classes: 'bg-red-100 text-red-800' },
+  incomplete: { label: 'Profile incomplete', classes: 'bg-gray-200 text-gray-800' },
+};
+
 export default function Profile() {
   const { user, logout, refreshUser } = useAuth();
   const [form, setForm] = useState({
@@ -70,25 +77,28 @@ export default function Profile() {
     }
   };
 
+  const verificationBadge = verificationBadges[user?.verificationStatus] || verificationBadges.incomplete;
+
   return (
     <main className="min-h-screen bg-gray-50 pb-24">
       <div className="mx-auto w-full max-w-3xl px-5 py-7 sm:px-8">
         <div className="mb-8 flex flex-col gap-5">
-          {user?.verificationStatus === 'pending' && <div className="rounded-xl border border-yellow-200 bg-yellow-50 p-4 text-sm text-yellow-800">Your profile is awaiting verification.</div>}
           {user?.verificationStatus === 'needs_correction' && <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800">Your profile needs correction. {user.verificationRemarks && <span className="block mt-1">Remark: {user.verificationRemarks}</span>} <span className="block mt-1 font-semibold">Editing and saving this profile will submit it for re-verification.</span></div>}
-          {user?.verificationStatus === 'verified' && <div className="rounded-xl border border-green-200 bg-green-50 p-4 text-sm text-green-800">Your profile has been verified.</div>}
         </div>
         <p className="text-sm font-semibold tracking-[0.2em] text-gray-600">FAMS</p>
         <h1 className="mt-3 text-3xl font-bold tracking-tight text-black">Profile</h1>
         <p className="mt-2 text-sm leading-6 text-gray-600">Your account information and session settings.</p>
 
         <section className="mt-7 rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
-          <div className="flex items-start justify-between gap-3">
+          <div className="flex flex-col gap-3">
             <div>
               <h2 className="text-xl font-bold text-black">{user?.name || 'FAMS user'}</h2>
               <p className="mt-1 text-sm text-gray-600">{user?.email || 'Email not available'}</p>
             </div>
-            <span className="rounded-full border border-gray-300 px-3 py-1.5 text-xs font-semibold capitalize text-gray-700">{user?.role || 'user'}</span>
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="rounded-full border border-gray-300 px-3 py-1 text-xs font-semibold capitalize text-gray-700">{user?.role || 'user'}</span>
+              <span className={`inline-flex items-center whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-bold ${verificationBadge.classes}`}>{verificationBadge.label}</span>
+            </div>
           </div>
 
           {user?.verificationStatus === 'needs_correction' && (

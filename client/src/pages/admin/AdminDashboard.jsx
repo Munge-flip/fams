@@ -23,13 +23,13 @@ const verificationClasses = {
 
 const verificationLabel = (status) => ({
   incomplete: 'Incomplete',
-  pending: 'Pending',
-  needs_correction: 'Needs correction',
+  pending: 'Awaiting verification',
+  needs_correction: 'Correction needed',
   verified: 'Verified',
 }[status] || status || 'Incomplete');
 
 const formatDate = (value) => value ? new Intl.DateTimeFormat('en-PH', { month: 'short', day: 'numeric', year: 'numeric' }).format(new Date(value)) : 'Not available';
-const errorMessage = (error, fallback) => error.response?.data?.message || error.message || fallback;
+const errorMessage = (error, fallback) => (error.response?.status >= 500 ? fallback : error.response?.data?.message || fallback);
 
 function OverviewCard({ label, detail, loading, error, value, action }) {
   return (
@@ -62,7 +62,7 @@ export default function AdminDashboard() {
       const response = await getPrograms();
       setPrograms(response.data);
     } catch (error) {
-      setProgramsError(errorMessage(error, 'Unable to load active programs.'));
+      setProgramsError(errorMessage(error, 'Unable to load programs. Please try again.'));
     } finally {
       setProgramsLoading(false);
     }
@@ -75,7 +75,7 @@ export default function AdminDashboard() {
       const response = await getApplications();
       setApplications(response.data);
     } catch (error) {
-      setApplicationsError(errorMessage(error, 'Unable to load applications.'));
+      setApplicationsError(errorMessage(error, 'Unable to load applications. Please try again.'));
     } finally {
       setApplicationsLoading(false);
     }
@@ -88,7 +88,7 @@ export default function AdminDashboard() {
       const response = await getUsers();
       setUsers(response.data);
     } catch (error) {
-      setUsersError(errorMessage(error, 'Unable to load recent users.'));
+      setUsersError(errorMessage(error, 'Unable to load recent users. Please try again.'));
     } finally {
       setUsersLoading(false);
     }
@@ -120,10 +120,10 @@ export default function AdminDashboard() {
   const recentUsers = useMemo(() => [...users].slice(0, 5), [users]);
 
   const overviewCards = [
-    { label: 'Active Programs', detail: 'Programs currently returned by the active-program API.', loading: programsLoading, error: programsError, value: programs.length, action: { to: '/admin/programs', label: 'Manage programs' } },
-    { label: 'Pending Applications', detail: 'Applications that are submitted or under review.', loading: applicationsLoading, error: applicationsError, value: applicationCounts.pending },
-    { label: 'Approved', detail: 'Applications currently marked approved.', loading: applicationsLoading, error: applicationsError, value: applicationCounts.approved },
-    { label: 'Cash Released', detail: 'Applications currently marked cash released.', loading: applicationsLoading, error: applicationsError, value: applicationCounts.cashReleased },
+    { label: 'Active Programs', detail: 'Programs currently available to applicants.', loading: programsLoading, error: programsError, value: programs.length, action: { to: '/admin/programs', label: 'Manage programs' } },
+    { label: 'Pending Applications', detail: 'Applications waiting for review.', loading: applicationsLoading, error: applicationsError, value: applicationCounts.pending },
+    { label: 'Approved', detail: 'Applications approved for assistance.', loading: applicationsLoading, error: applicationsError, value: applicationCounts.approved },
+    { label: 'Cash Released', detail: 'Applications where assistance has been released.', loading: applicationsLoading, error: applicationsError, value: applicationCounts.cashReleased },
   ];
 
   return (
@@ -132,7 +132,7 @@ export default function AdminDashboard() {
         <div>
           <p className="text-sm font-semibold tracking-[0.16em] text-gray-500">OVERVIEW</p>
           <h1 className="mt-2 text-3xl font-bold tracking-tight text-black sm:text-4xl">Admin dashboard</h1>
-          <p className="mt-3 max-w-2xl text-sm leading-6 text-gray-600">Monitor active financial-assistance programs and application activity from one workspace.</p>
+          <p className="mt-3 max-w-2xl text-sm leading-6 text-gray-600">Monitor financial-assistance programs and application activity in one place.</p>
         </div>
         <button className="min-h-11 rounded-lg border border-gray-300 bg-white px-4 text-sm font-bold text-gray-800 disabled:cursor-not-allowed disabled:opacity-60" type="button" onClick={refreshDashboard} disabled={refreshing}>{refreshing ? 'Refreshing…' : 'Refresh dashboard'}</button>
       </section>
@@ -145,7 +145,7 @@ export default function AdminDashboard() {
         <div className="flex flex-wrap items-center justify-between gap-4 border-b border-gray-200 px-5 py-4 sm:px-6">
           <div>
             <h2 id="recent-applications-heading" className="text-lg font-bold text-black">Recent Applications</h2>
-            <p className="mt-1 text-sm text-gray-600">The five most recently submitted applications, sorted in this dashboard from the returned data.</p>
+            <p className="mt-1 text-sm text-gray-600">The five most recently submitted applications.</p>
           </div>
           <Link className="inline-flex min-h-10 items-center rounded-lg border border-gray-300 px-3 text-sm font-semibold text-gray-800" to="/admin/applications">View all applications</Link>
         </div>
@@ -179,7 +179,7 @@ export default function AdminDashboard() {
         <div className="flex flex-wrap items-center justify-between gap-4 border-b border-gray-200 px-5 py-4 sm:px-6">
           <div>
             <h2 id="recent-users-heading" className="text-lg font-bold text-black">Recent Users</h2>
-            <p className="mt-1 text-sm text-gray-600">The five most recently registered beneficiaries, sorted by registration date from the returned data.</p>
+            <p className="mt-1 text-sm text-gray-600">The five most recently registered beneficiaries.</p>
           </div>
           <Link className="inline-flex min-h-10 items-center rounded-lg border border-gray-300 px-3 text-sm font-semibold text-gray-800" to="/admin/users">View all users</Link>
         </div>

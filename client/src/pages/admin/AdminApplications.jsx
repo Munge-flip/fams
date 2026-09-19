@@ -24,7 +24,7 @@ const formatDate = (value) => value ? new Intl.DateTimeFormat('en-PH', {
   year: 'numeric',
 }).format(new Date(value)) : 'Not available';
 
-const requestError = (error, fallback) => error.response?.data?.message || error.message || fallback;
+const requestError = (error, fallback) => (error.response?.status >= 500 ? fallback : error.response?.data?.message || fallback);
 
 export default function AdminApplications() {
   const [applications, setApplications] = useState([]);
@@ -38,7 +38,7 @@ export default function AdminApplications() {
       const response = await getApplications();
       setApplications(response.data);
     } catch (requestErrorValue) {
-      setError(requestError(requestErrorValue, 'Unable to load applications.'));
+      setError(requestError(requestErrorValue, 'Unable to load applications. Please try again.'));
     } finally {
       setLoading(false);
     }
@@ -64,7 +64,7 @@ export default function AdminApplications() {
       <section className="mt-6 overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm" aria-labelledby="application-list-heading">
         <div className="border-b border-gray-200 px-5 py-4 sm:px-6">
           <h2 className="text-lg font-bold text-black" id="application-list-heading">All applications</h2>
-          <p className="mt-1 text-sm text-gray-600">The API returns the full application list; no filters, search, or pagination are available.</p>
+          <p className="mt-1 text-sm text-gray-600">All submitted applications are listed here.</p>
         </div>
 
         {loading && <p className="p-6 text-sm text-gray-600" role="status">Loading applications…</p>}
