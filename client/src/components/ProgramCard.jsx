@@ -7,6 +7,25 @@ const categoryLabels = {
   emergency: 'Emergency aid',
 };
 
+const assistanceTypeLabels = {
+  cash: 'Cash Assistance',
+  food: 'Food Assistance',
+};
+
+const formatAmount = (amount) => `₱${new Intl.NumberFormat('en-PH', { maximumFractionDigits: 2 }).format(amount)}`;
+
+const assistanceDetails = (program) => {
+  const label = assistanceTypeLabels[program.assistanceType];
+  if (!label) return null;
+
+  const { assistanceValue } = program;
+  const value = assistanceValue === undefined || assistanceValue === null || assistanceValue === ''
+    ? ''
+    : program.assistanceType === 'cash' ? formatAmount(Number(assistanceValue)) : String(assistanceValue);
+
+  return { label, value };
+};
+
 const formatDeadline = (deadline) => new Intl.DateTimeFormat('en-PH', {
   month: 'short',
   day: 'numeric',
@@ -16,6 +35,7 @@ const formatDeadline = (deadline) => new Intl.DateTimeFormat('en-PH', {
 export default function ProgramCard({ program }) {
   const { user } = useAuth();
   const verified = user?.verificationStatus === 'verified';
+  const assistance = assistanceDetails(program);
 
   return (
     <article className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
@@ -31,6 +51,13 @@ export default function ProgramCard({ program }) {
         <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Eligibility</p>
         <p className="mt-1 text-sm leading-5 text-gray-700">{program.eligibility}</p>
       </div>
+      {assistance && (
+        <div className="mt-4 border-t border-gray-100 pt-4">
+          <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Assistance</p>
+          <p className="mt-1 text-sm font-semibold text-black">{assistance.label}</p>
+          {assistance.value && <p className="mt-1 text-sm leading-5 text-gray-700">{assistance.value}</p>}
+        </div>
+      )}
       <div className="mt-4 flex items-center justify-between gap-3">
         <p className="text-sm font-semibold text-black">{program.slots} available slots</p>
         {verified ? (

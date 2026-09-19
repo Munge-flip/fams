@@ -15,6 +15,8 @@ const emptyForm = {
   deadline: '',
   category: 'scholarship',
   status: 'active',
+  assistanceType: 'cash',
+  assistanceValue: '',
   releaseDate: '',
   releaseTimeStart: '',
   releaseTimeEnd: '',
@@ -26,6 +28,32 @@ const categoryLabels = {
   scholarship: 'Scholarship',
   barangay: 'Barangay',
   emergency: 'Emergency',
+};
+
+const assistanceTypeLabels = {
+  cash: 'Cash Assistance',
+  food: 'Food Assistance',
+};
+
+const formatAmount = (amount) => `₱${new Intl.NumberFormat('en-PH', { maximumFractionDigits: 2 }).format(amount)}`;
+
+const formatAssistance = (program) => {
+  const type = assistanceTypeLabels[program.assistanceType];
+  if (!type) {
+    return '—';
+  }
+
+  const { assistanceValue } = program;
+  if (assistanceValue === undefined || assistanceValue === null || assistanceValue === '') {
+    return type;
+  }
+
+  if (program.assistanceType === 'cash') {
+    return `${type} — ${formatAmount(Number(assistanceValue))}`;
+  }
+
+  const text = String(assistanceValue);
+  return `${type} — ${text.length > 32 ? `${text.slice(0, 32)}…` : text}`;
 };
 
 const errorMessage = (error, fallback) => (error.response?.status >= 500 ? fallback : error.response?.data?.message || fallback);
@@ -46,6 +74,8 @@ const toFormValues = (program) => ({
   deadline: toDateInput(program.deadline),
   category: program.category || 'scholarship',
   status: program.status || 'active',
+  assistanceType: program.assistanceType === 'food' ? 'food' : 'cash',
+  assistanceValue: program.assistanceValue === undefined || program.assistanceValue === null ? '' : String(program.assistanceValue),
   releaseDate: toDateInput(program.releaseDetails?.date),
   releaseTimeStart: program.releaseDetails?.timeStart || '',
   releaseTimeEnd: program.releaseDetails?.timeEnd || '',
@@ -61,6 +91,11 @@ function validateForm(form, includeStatus) {
   const slots = Number(form.slots);
   if (!form.slots.trim() || !Number.isInteger(slots) || slots < 0) return 'Enter a whole number of 0 or more.';
   if (!form.deadline || Number.isNaN(new Date(form.deadline).getTime())) return 'Deadline must be a valid date.';
+  if (form.assistanceType === 'cash') {
+    if (!form.assistanceValue.trim() || !Number.isFinite(Number(form.assistanceValue)) || Number(form.assistanceValue) < 0) return 'Assistance amount must be 0 or more.';
+  } else if (!form.assistanceValue.trim()) {
+    return 'Assistance details are required for food assistance.';
+  }
   if (!Object.hasOwn(categoryLabels, form.category)) return 'Select a valid category.';
   if (includeStatus && !['active', 'closed'].includes(form.status)) return 'Select a valid status.';
 
@@ -78,6 +113,7 @@ function validateForm(form, includeStatus) {
 
 function ProgramForm({ mode, form, formError, submitting, onCancel, onChange, onSubmit }) {
   const isCreating = mode === 'create';
+  const isCashAssistance = form.assistanceType === 'cash';
 
   return (
     <section className="mb-8 rounded-xl border border-gray-200 bg-white p-5 shadow-sm sm:p-6" aria-labelledby="program-form-heading">
@@ -127,6 +163,34 @@ function ProgramForm({ mode, form, formError, submitting, onCancel, onChange, on
             </select>
           </label>
         )}
+        <div className="lg:col-span-2 mt-2 border-t border-gray-200 pt-5">
+          <h3 className="text-base font-bold text-black">Assistance details</h3>
+          <p className="mt-1 text-sm text-gray-600">Choose what the program gives to each qualified applicant.</p>
+          <div className="mt-4 grid gap-5 sm:grid-cols-2">
+            <label className="block" htmlFor="program-assistance-type">
+              <span className="text-sm font-semibold text-gray-800">Assistance type</span>
+              <select className="mt-2 block min-h-11 w-full rounded-lg border border-gray-300 bg-white px-3 text-sm outline-none focus:border-black focus:ring-2 focus:ring-black/10" id="program-assistance-type" name="assistanceType" value={form.assistanceType} onChange={onChange} disabled={submitting}>
+                {Object.entries(assistanceTypeLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+              </select>
+            </label>
+            {isCashAssistance ? (
+              <label className="block" htmlFor="program-assistance-value">
+                <span className="text-sm font-semibold text-gray-800">Assistance amount</span>
+                <span className="relative mt-2 block">
+                  <span aria-hidden="true" className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-sm text-gray-500">₱</span>
+                  <input className="block min-h-11 w-full rounded-lg border border-gray-300 pl-7 pr-3 text-sm outline-none focus:border-black focus:ring-2 focus:ring-black/10" id="program-assistance-value" name="assistanceValue" type="number" min="0" step="0.01" inputMode="decimal" value={form.assistanceValue} onChange={onChange} disabled={submitting} placeholder="5000" />
+                </span>
+                <span className="mt-1 block text-xs text-gray-500">Amount in pesos for each qualified applicant.</span>
+              </label>
+            ) : (
+              <label className="block" htmlFor="program-assistance-value">
+                <span className="text-sm font-semibold text-gray-800">Assistance details</span>
+                <input className="mt-2 block min-h-11 w-full rounded-lg border border-gray-300 px-3 text-sm outline-none focus:border-black focus:ring-2 focus:ring-black/10" id="program-assistance-value" name="assistanceValue" value={form.assistanceValue} onChange={onChange} disabled={submitting} placeholder="e.g. 2 sacks of rice" />
+                <span className="mt-1 block text-xs text-gray-500">Describe what the applicant receives.</span>
+              </label>
+            )}
+          </div>
+        </div>
         <div className="lg:col-span-2 mt-2 border-t border-gray-200 pt-5">
           <h3 className="text-base font-bold text-black">Release schedule</h3>
           <p className="mt-1 text-sm text-gray-600">Set the cash assistance release schedule once for this program. Applications that have no application-level schedule will use this schedule.</p>
@@ -209,7 +273,17 @@ export default function AdminPrograms() {
 
   const handleFormChange = (event) => {
     const { name, value } = event.target;
-    setForm((current) => ({ ...current, [name]: value }));
+    if (name !== 'assistanceType') {
+      setForm((current) => ({ ...current, [name]: value }));
+      return;
+    }
+
+    setForm((current) => {
+      // A cash amount stays valid as food text; food text is dropped when it is not a number.
+      const currentValue = current.assistanceValue;
+      const keepValue = value === 'food' || (currentValue.trim() !== '' && Number.isFinite(Number(currentValue)));
+      return { ...current, assistanceType: value, assistanceValue: keepValue ? currentValue : '' };
+    });
   };
 
   const handleCreate = () => {
@@ -252,6 +326,8 @@ export default function AdminPrograms() {
       slots: Number(form.slots),
       deadline: form.deadline,
       category: form.category,
+      assistanceType: form.assistanceType,
+      assistanceValue: form.assistanceType === 'cash' ? Number(form.assistanceValue) : form.assistanceValue.trim(),
     };
 
     if (isCreating) payload.status = form.status;
@@ -376,6 +452,7 @@ export default function AdminPrograms() {
                 <tr>
                   <th className="px-5 py-3 font-semibold sm:px-6" scope="col">Title</th>
                   <th className="px-5 py-3 font-semibold" scope="col">Category</th>
+                  <th className="px-5 py-3 font-semibold" scope="col">Assistance</th>
                   <th className="px-5 py-3 font-semibold" scope="col">Deadline</th>
                   <th className="px-5 py-3 font-semibold" scope="col">Slots</th>
                   <th className="px-5 py-3 font-semibold" scope="col">Status</th>
@@ -390,6 +467,7 @@ export default function AdminPrograms() {
                     <tr key={program._id} className={isClosed ? 'bg-amber-50/50' : 'bg-white'}>
                       <td className="max-w-xs px-5 py-4 font-semibold text-black sm:px-6">{program.title}</td>
                       <td className="px-5 py-4 text-gray-700">{categoryLabels[program.category] || program.category}</td>
+                      <td className="whitespace-nowrap px-5 py-4 text-gray-700">{formatAssistance(program)}</td>
                       <td className="whitespace-nowrap px-5 py-4 text-gray-700">{formatDate(program.deadline)}</td>
                       <td className="px-5 py-4 text-gray-700">{program.slots}</td>
                       <td className="px-5 py-4"><span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-bold ${isClosed ? 'bg-gray-200 text-gray-800' : 'bg-green-100 text-green-800'}`}>{isClosed ? 'Closed' : 'Active'}</span></td>

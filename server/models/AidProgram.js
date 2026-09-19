@@ -8,6 +8,8 @@ const aidProgramSchema = new mongoose.Schema({
   deadline: Date,
   category: { type: String, enum: ['scholarship', 'barangay', 'emergency'] },
   status: { type: String, enum: ['active', 'closed'] },
+  assistanceType: { type: String, enum: ['cash', 'food'] },
+  assistanceValue: { type: mongoose.Schema.Types.Mixed },
   createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
   createdAt: { type: Date, default: Date.now },
   releaseDetails: {

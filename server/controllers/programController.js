@@ -3,11 +3,54 @@ const Application = require('../models/Application');
 const asyncHandler = require('../utils/asyncHandler');
 const { isValidDate, isValidObjectId } = require('../utils/validation');
 
-const programFields = ['title', 'description', 'eligibility', 'slots', 'deadline', 'category', 'status', 'releaseDetails'];
+const programFields = ['title', 'description', 'eligibility', 'slots', 'deadline', 'category', 'status', 'releaseDetails', 'assistanceType', 'assistanceValue'];
 const categories = ['scholarship', 'barangay', 'emergency'];
 const statuses = ['active', 'closed'];
+const assistanceTypes = ['cash', 'food'];
 const releaseDetailsFields = ['date', 'timeStart', 'timeEnd', 'location', 'instructions'];
 const timePattern = /^\d{2}:\d{2}$/;
+
+const toAssistanceAmount = (value) => {
+  if (typeof value === 'string') {
+    return value.trim() === '' ? null : Number(value.trim());
+  }
+  return typeof value === 'number' ? value : null;
+};
+
+// Cash assistance stores a peso amount, food assistance stores a short text description.
+const validateAssistance = (body, partial) => {
+  const hasType = body.assistanceType !== undefined;
+  const hasValue = body.assistanceValue !== undefined;
+
+  // Programs that predate assistance details stay editable through partial updates.
+  if (partial && !hasType && !hasValue) {
+    return null;
+  }
+
+  // A partial update that changes the value must say which type it belongs to.
+  if (partial && hasValue && !hasType) {
+    return 'assistanceType is required when assistanceValue is provided.';
+  }
+
+  const type = hasType ? String(body.assistanceType).trim() : 'cash';
+  if (!assistanceTypes.includes(type)) {
+    return 'assistanceType must be cash or food.';
+  }
+
+  if (type === 'cash') {
+    const amount = toAssistanceAmount(body.assistanceValue);
+    if (amount === null || !Number.isFinite(amount) || amount < 0) {
+      return 'assistanceValue must be a number greater than or equal to 0 for cash assistance.';
+    }
+    return null;
+  }
+
+  if (typeof body.assistanceValue !== 'string' || !body.assistanceValue.trim()) {
+    return 'assistanceValue must be a non-empty text description for food assistance.';
+  }
+
+  return null;
+};
 
 const validateReleaseDetails = (releaseDetails) => {
   if (releaseDetails === null || releaseDetails === undefined) {
@@ -87,6 +130,11 @@ const validateProgram = (body, partial = false) => {
     }
   }
 
+  const assistanceError = validateAssistance(body, partial);
+  if (assistanceError) {
+    return assistanceError;
+  }
+
   return null;
 };
 
@@ -120,6 +168,17 @@ const normalizeProgramFields = (body) => {
     }
   }
 
+  // Cash stores a peso amount; food stores a short text description.
+  if (normalized.assistanceType !== undefined) {
+    normalized.assistanceType = String(normalized.assistanceType).trim();
+  }
+
+  if (normalized.assistanceValue !== undefined) {
+    normalized.assistanceValue = normalized.assistanceType === 'food'
+      ? String(normalized.assistanceValue).trim()
+      : toAssistanceAmount(normalized.assistanceValue);
+  }
+
   return normalized;
 };
 
@@ -147,8 +206,9 @@ const createProgram = asyncHandler(async (req, res) => {
     return res.status(400).json({ success: false, message: validationError });
   }
 
+  // New programs default to cash assistance when no type is supplied.
   const program = await AidProgram.create({
-    ...normalizeProgramFields(req.body),
+    ...normalizeProgramFields({ assistanceType: 'cash', ...req.body }),
     createdBy: req.user._id,
   });
 
