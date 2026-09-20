@@ -99,10 +99,10 @@ export default function Dashboard() {
                 <h3 className="text-lg font-bold text-blue-900">Cash assistance release</h3>
                 <p className="mt-1 text-sm text-blue-800">Program: {app.program?.title}</p>
                 {assistance && <p className="mt-2 text-lg font-bold text-blue-900">{assistance}</p>}
-                <div className="mt-3 grid grid-cols-2 gap-3 text-sm text-blue-800">
+                <div className="mt-3 grid gap-3 text-sm text-blue-800 sm:grid-cols-2">
                   <p><strong>Date:</strong> {new Date(schedule.date).toLocaleDateString()}</p>
                   <p><strong>Time:</strong> {formatTimeRange(schedule.timeStart, schedule.timeEnd)}</p>
-                  <p className="col-span-2"><strong>Location:</strong> {schedule.location}</p>
+                  <p className="sm:col-span-2"><strong>Location:</strong> {schedule.location}</p>
                 </div>
                 {schedule.instructions && <p className="mt-3 text-sm text-blue-800 border-t border-blue-200 pt-3"><strong>Instructions:</strong> {schedule.instructions}</p>}
               </div>
