@@ -65,6 +65,8 @@ const formatDate = (date) => new Intl.DateTimeFormat('en-PH', {
   year: 'numeric',
 }).format(new Date(date));
 
+// Reads the API's `approvedCount`, which counts every slot-occupying status
+// (approved + cash_released), not just `approved`.
 const approvedCountOf = (program) => (Number.isInteger(program.approvedCount) && program.approvedCount >= 0 ? program.approvedCount : 0);
 
 const slotLimitOf = (program) => {
@@ -81,9 +83,11 @@ const formatSlots = (program) => {
   return `${approvedCountOf(program)} / ${limit === null ? '—' : limit}`;
 };
 
+// Mirrors isProgramFull on the server: a program is full once every slot is occupied,
+// and released beneficiaries keep their slot.
 const isAtCapacity = (program) => {
   const limit = slotLimitOf(program);
-  return limit !== null && limit > 0 && approvedCountOf(program) >= limit;
+  return limit !== null && approvedCountOf(program) >= limit;
 };
 
 const toDateInput = (date) => (date ? new Date(date).toISOString().slice(0, 10) : '');
@@ -492,7 +496,7 @@ export default function AdminPrograms() {
                         <td className="px-5 py-4 text-gray-700">{categoryLabels[program.category] || program.category}</td>
                         <td className="whitespace-nowrap px-5 py-4 text-gray-700">{formatAssistance(program)}</td>
                         <td className="whitespace-nowrap px-5 py-4 text-gray-700">{formatDate(program.deadline)}</td>
-                        <td className={`whitespace-nowrap px-5 py-4 ${isAtCapacity(program) ? 'font-semibold text-amber-700' : 'text-gray-700'}`} title={`${approvedCountOf(program)} approved beneficiaries out of ${slotLimitOf(program) ?? 'an unspecified number of'} slots`}>{formatSlots(program)}</td>
+                        <td className={`whitespace-nowrap px-5 py-4 ${isAtCapacity(program) ? 'font-semibold text-amber-700' : 'text-gray-700'}`} title={`${approvedCountOf(program)} beneficiaries hold a slot out of ${slotLimitOf(program) ?? 'an unspecified number of'} slots`}>{formatSlots(program)}</td>
                         <td className="px-5 py-4"><span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-bold ${isClosed ? 'bg-gray-200 text-gray-800' : 'bg-green-100 text-green-800'}`}>{isClosed ? 'Closed' : 'Active'}</span></td>
                         <td className="px-5 py-4 sm:px-6">
                           <div className="flex min-w-64 flex-wrap gap-2">

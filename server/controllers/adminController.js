@@ -2,11 +2,11 @@ const User = require('../models/User');
 const AidProgram = require('../models/AidProgram');
 const Application = require('../models/Application');
 const asyncHandler = require('../utils/asyncHandler');
+const { slotOccupyingStatuses } = require('../utils/applicationStatus');
 const { isValidObjectId } = require('../utils/validation');
 
 const beneficiaryRoles = ['student', 'resident'];
 const verificationStatuses = ['verified', 'needs_correction'];
-const acceptedApplicationStatuses = ['approved', 'cash_released'];
 
 const toSafeUser = (user) => {
   const { password, ...safeUser } = user.toObject();
@@ -70,8 +70,9 @@ const listProgramBeneficiaries = asyncHandler(async (req, res) => {
     return res.status(404).json({ success: false, message: 'Aid program not found.' });
   }
 
-  // Accepted beneficiaries stay listed after their assistance is marked released.
-  const beneficiaries = await Application.find({ program: program._id, status: { $in: acceptedApplicationStatuses } })
+  // Accepted beneficiaries hold a slot, so the list uses the same status set as the
+  // slot count: released beneficiaries stay listed after their assistance is released.
+  const beneficiaries = await Application.find({ program: program._id, status: { $in: slotOccupyingStatuses } })
     .sort({ submittedAt: 1 })
     .populate('applicant', 'name email studentID barangay contactNo');
 

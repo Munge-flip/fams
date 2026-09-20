@@ -1,6 +1,7 @@
 const AidProgram = require('../models/AidProgram');
 const Application = require('../models/Application');
 const asyncHandler = require('../utils/asyncHandler');
+const { slotOccupyingStatuses } = require('../utils/applicationStatus');
 const { isValidDate, isValidObjectId } = require('../utils/validation');
 
 const programFields = ['title', 'description', 'eligibility', 'slots', 'deadline', 'category', 'status', 'releaseDetails', 'assistanceType', 'assistanceValue'];
@@ -182,17 +183,21 @@ const normalizeProgramFields = (body) => {
   return normalized;
 };
 
-const approvedStatus = 'approved';
-
-// Approved beneficiaries are derived from the applications themselves, so the count can never drift.
+// Wire field `approvedCount` is kept for client compatibility; it counts every
+// slot-occupying status (approved + cash_released), not just `approved`.
+// Occupied slots are derived from the applications themselves, so the count can never
+// drift. Released beneficiaries keep their slot: `approved` and `cash_released` both count.
 const withApprovedCount = async (program) => ({
   ...program.toObject(),
-  approvedCount: await Application.countDocuments({ program: program._id, status: approvedStatus }),
+  approvedCount: await Application.countDocuments({
+    program: program._id,
+    status: { $in: slotOccupyingStatuses },
+  }),
 });
 
 const approvedCountsFor = async (programIds) => {
   const rows = await Application.aggregate([
-    { $match: { program: { $in: programIds }, status: approvedStatus } },
+    { $match: { program: { $in: programIds }, status: { $in: slotOccupyingStatuses } } },
     { $group: { _id: '$program', count: { $sum: 1 } } },
   ]);
   return new Map(rows.map((row) => [String(row._id), row.count]));

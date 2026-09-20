@@ -71,6 +71,9 @@ export default function AdminProgramBeneficiaries() {
 
   const acceptedCount = beneficiaries.filter((application) => application.status === 'approved').length;
   const releasedCount = beneficiaries.filter((application) => application.status === 'cash_released').length;
+  // Accepted and released beneficiaries both hold a slot, so this total matches the
+  // occupied count shown in the programs table.
+  const occupiedCount = acceptedCount + releasedCount;
 
   if (loading) {
     return <section className="rounded-xl border border-gray-200 bg-white p-6 text-sm text-gray-600" role="status">Loading beneficiaries…</section>;
@@ -87,6 +90,8 @@ export default function AdminProgramBeneficiaries() {
       </section>
     );
   }
+
+  const slotLimit = Number.isInteger(program.slots) && program.slots >= 0 ? program.slots : null;
 
   return (
     <>
@@ -107,7 +112,7 @@ export default function AdminProgramBeneficiaries() {
       <section className="mt-6 overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm" aria-labelledby="beneficiary-list-heading">
         <div className="border-b border-gray-200 px-5 py-4 sm:px-6">
           <h2 className="text-lg font-bold text-black" id="beneficiary-list-heading">Accepted beneficiaries</h2>
-          <p className="mt-1 text-sm text-gray-600">{acceptedCount} waiting for release, {releasedCount} already released. List is ordered by application date.</p>
+          <p className="mt-1 text-sm text-gray-600">{acceptedCount} waiting for release, {releasedCount} already released. {slotLimit === null ? `${occupiedCount} slots occupied` : `${occupiedCount} of ${slotLimit} slots occupied`}. List is ordered by application date.</p>
         </div>
 
         {beneficiaries.length === 0 ? (

@@ -3,21 +3,18 @@ const Application = require('../models/Application');
 const Document = require('../models/Document');
 const User = require('../models/User');
 const asyncHandler = require('../utils/asyncHandler');
+const {
+  activeApplicationStatuses,
+  applicationStatuses,
+  applicationTransitions,
+  isProgramFull,
+  occupiesSlot,
+  slotOccupyingStatuses,
+} = require('../utils/applicationStatus');
 const { isPlainObject, isValidDate, isValidObjectId } = require('../utils/validation');
 
 const applicationFields = ['program', 'personalInfo', 'documents'];
 const personalInfoFields = ['fullName', 'address', 'contactNo', 'birthdate'];
-const statuses = ['submitted', 'under_review', 'approved', 'denied', 'cash_released'];
-// A beneficiary may only reapply after `denied`; every other status is an active
-// claim on the program (cash_released is the completed form of an approval).
-const activeApplicationStatuses = ['submitted', 'under_review', 'approved', 'cash_released'];
-const transitions = {
-  submitted: ['under_review'],
-  under_review: ['approved', 'denied'],
-  approved: ['cash_released'],
-  denied: [],
-  cash_released: ['approved'],
-};
 
 const applicationPopulation = [
   { path: 'applicant', select: 'name email role studentID barangay contactNo' },
@@ -153,8 +150,14 @@ const createApplication = asyncHandler(async (req, res) => {
     return res.status(409).json({ success: false, message: 'You already have an active application for this program.' });
   }
 
-  const applicationCount = await Application.countDocuments({ program: program._id });
-  if (program.slots === 0 || applicationCount >= program.slots) {
+  // Only statuses that occupy a slot count towards the limit, so released beneficiaries
+  // keep their slot and denied or in-review applications do not consume one.
+  const occupiedCount = await Application.countDocuments({
+    program: program._id,
+    status: { $in: slotOccupyingStatuses },
+  });
+
+  if (isProgramFull(program.slots, occupiedCount)) {
     return res.status(409).json({ success: false, message: 'This program has reached its application capacity.' });
   }
 
@@ -190,7 +193,7 @@ const updateApplicationStatus = asyncHandler(async (req, res) => {
     return res.status(400).json({ success: false, message: `Unexpected field: ${unexpectedField}.` });
   }
 
-  if (!statuses.includes(req.body.status)) {
+  if (!applicationStatuses.includes(req.body.status)) {
     return res.status(400).json({ success: false, message: 'status must be a valid application status.' });
   }
 
@@ -203,8 +206,21 @@ const updateApplicationStatus = asyncHandler(async (req, res) => {
     return res.status(404).json({ success: false, message: 'Application not found.' });
   }
 
-  if (application.status !== req.body.status && !transitions[application.status].includes(req.body.status)) {
+  if (application.status !== req.body.status && !applicationTransitions[application.status].includes(req.body.status)) {
     return res.status(400).json({ success: false, message: 'Invalid application status transition.' });
+  }
+
+  // Accepting a beneficiary consumes a slot, so a free slot must remain. Releasing and
+  // undoing a release keep the same slot, so those transitions are exempt from this check.
+  if (!occupiesSlot(application.status) && occupiesSlot(req.body.status)) {
+    const program = await AidProgram.findById(application.program);
+    const occupiedCount = program
+      ? await Application.countDocuments({ program: program._id, status: { $in: slotOccupyingStatuses } })
+      : 0;
+
+    if (program && isProgramFull(program.slots, occupiedCount)) {
+      return res.status(409).json({ success: false, message: 'This program has reached its full number of slots.' });
+    }
   }
 
   application.status = req.body.status;
