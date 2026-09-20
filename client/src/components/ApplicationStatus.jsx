@@ -1,11 +1,15 @@
-// One pill system for the whole app: application statuses and profile verification
-// statuses share this map so coloured pills stay consistent across every surface.
+// One pill system for the whole app: application statuses, profile verification statuses,
+// and the program status shown on discovery cards share this map so coloured pills stay
+// consistent across every surface.
 const details = {
   submitted: { label: 'Submitted', color: 'bg-gray-700', text: 'text-gray-700' },
   under_review: { label: 'Under review', color: 'bg-blue-600', text: 'text-blue-700' },
   approved: { label: 'Approved', color: 'bg-green-700', text: 'text-green-700' },
   denied: { label: 'Denied', color: 'bg-red-600', text: 'text-red-700' },
   cash_released: { label: 'Cash released', color: 'bg-emerald-900', text: 'text-emerald-900' },
+  // AidProgram.status. Distinct from "full": a closed program is not accepting applications
+  // at all, however many slots are free.
+  closed: { label: 'Closed', color: 'bg-gray-700', text: 'text-gray-700' },
   // Verification statuses (Student Profile Verification Badge feature).
   verified: { label: 'Verified', color: 'bg-green-700', text: 'text-green-700' },
   pending: { label: 'Awaiting verification', color: 'bg-blue-600', text: 'text-blue-700' },

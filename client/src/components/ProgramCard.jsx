@@ -3,6 +3,7 @@ import { StatusBadge } from './ApplicationStatus';
 import { useAuth } from '../context/AuthContext';
 import { isActiveApplication } from '../utils/applications';
 import { cardAccent, categoryLabel, deadlineAccent, slotAccent, slotsLabel } from '../utils/accents';
+import { programAvailability } from '../utils/programFilters';
 import { assistanceTypeLabels, formatAmount } from '../utils/assistance';
 
 const assistanceDetails = (program) => {
@@ -29,6 +30,9 @@ export default function ProgramCard({ program, application }) {
   const assistance = assistanceDetails(program);
   const active = isActiveApplication(application);
   const slots = slotAccent(program.slots, program.approvedCount);
+  const availability = programAvailability(program);
+  const full = availability === 'full';
+  const closed = availability === 'closed';
   const deadline = deadlineAccent(program.deadline);
 
   return (
@@ -54,6 +58,18 @@ export default function ProgramCard({ program, application }) {
         <p className={`text-sm font-semibold ${slots.text}`} data-tone={slots.tone}>{slotsLabel(program.slots, slots)}</p>
         {active ? (
           <StatusBadge status={application.status} />
+        ) : full ? (
+          // The server refuses applications for a full program, so the card must not offer
+          // one: a disabled button navigates nowhere, unlike a link with a click guard.
+          <button
+            className="inline-flex min-h-11 cursor-not-allowed items-center rounded-lg bg-gray-200 px-3 py-2 text-sm font-semibold text-gray-500"
+            type="button"
+            disabled
+          >
+            Program Full
+          </button>
+        ) : closed ? (
+          <StatusBadge status="closed" />
         ) : verified ? (
           <Link className="inline-flex min-h-11 items-center rounded-lg bg-black px-3 py-2 text-sm font-semibold text-white" to={`/apply?program=${program._id}`}>Apply now</Link>
         ) : (
@@ -62,7 +78,12 @@ export default function ProgramCard({ program, application }) {
           </Link>
         )}
       </div>
-      {!active && !verified && (
+      {!active && closed && (
+        <p className="mt-2 text-xs leading-5 text-gray-600">
+          This program is closed and is no longer accepting applications.
+        </p>
+      )}
+      {!active && !full && !closed && !verified && (
         <p className="mt-2 text-xs leading-5 text-gray-600">
           Verify your profile before you can apply for this program.
         </p>

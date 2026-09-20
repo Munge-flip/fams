@@ -6,6 +6,7 @@ const { clearedCookieOptions, cookieOptions, verificationCookieOptions } = requi
 const asyncHandler = require('../utils/asyncHandler');
 const { createToken, createVerificationTicket } = require('../utils/token');
 const { sendVerificationCode } = require('../utils/email');
+const { validateEmailDomain, validateEmailFormat } = require('../utils/validation');
 
 const allowedFields = [
   'name', 'email', 'password', 'role', 'studentID', 'course', 'yearLevel',
@@ -13,8 +14,6 @@ const allowedFields = [
 ];
 
 const updateableProfileFields = ['name', 'studentID', 'course', 'yearLevel', 'barangay', 'contactNo', 'aidCategory'];
-
-const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 // Single definition of the password policy, shared by registration and password changes.
 const validatePassword = (password) => {
@@ -51,8 +50,9 @@ const validateRegistration = (body) => {
     return 'Name is required.';
   }
 
-  if (typeof body.email !== 'string' || !emailPattern.test(body.email.trim())) {
-    return 'A valid email address is required.';
+  const emailError = validateEmailFormat(body.email);
+  if (emailError) {
+    return emailError;
   }
 
   const passwordError = validatePassword(body.password);
@@ -79,6 +79,13 @@ const register = asyncHandler(async (req, res) => {
   const validationError = validateRegistration(req.body);
   if (validationError) {
     return res.status(400).json({ success: false, message: validationError });
+  }
+
+  // The activation code has to reach a real inbox, so the domain is checked before the
+  // account exists and before any code is generated.
+  const domainError = await validateEmailDomain(req.body.email);
+  if (domainError) {
+    return res.status(400).json({ success: false, message: domainError });
   }
 
   const email = req.body.email.trim().toLowerCase();
@@ -453,13 +460,23 @@ const authorizeEmailChange = async (req, res) => {
   const body = readRequestBody(req, res, ['email', 'currentPassword']);
   if (!body) return null;
 
-  if (typeof body.email !== 'string' || !emailPattern.test(body.email.trim())) {
-    res.status(400).json({ success: false, message: 'Enter a valid email address.' });
+  const formatError = validateEmailFormat(body.email);
+  if (formatError) {
+    res.status(400).json({ success: false, message: formatError });
     return null;
   }
 
   const user = await authorizePassword(req, res, ['email', 'currentPassword']);
   if (!user) return null;
+
+  // The code for a change is sent to the new address, so the domain has to be able to
+  // receive mail. Checked before the code is generated and before any send is attempted,
+  // and only after the password proves this is the account owner.
+  const domainError = await validateEmailDomain(body.email);
+  if (domainError) {
+    res.status(400).json({ success: false, message: domainError });
+    return null;
+  }
 
   // Activation codes and email-change codes share one pending record, but only a confirmed
   // account can sign in, so an activation code can never be waiting for this user.
