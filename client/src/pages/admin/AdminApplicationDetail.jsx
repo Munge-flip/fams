@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { getApplication, updateApplicationStatus, updateReleaseAmount } from '../../services/applicationService';
+import { getApplication, updateApplicationStatus } from '../../services/applicationService';
+import { assistanceValueText } from '../../utils/assistance';
 
 const documentLabels = {
   valid_id: 'Valid ID',
@@ -54,36 +55,6 @@ export default function AdminApplicationDetail() {
   const [success, setSuccess] = useState('');
   const [savingRemarks, setSavingRemarks] = useState(false);
   const [changingStatus, setChangingStatus] = useState('');
-  const [releaseAmount, setReleaseAmount] = useState('');
-  const [savingAmount, setSavingAmount] = useState(false);
-
-  useEffect(() => {
-    if (application) {
-      const currentAmount = application.releaseDetails?.amount;
-      setReleaseAmount(currentAmount === undefined || currentAmount === null ? '' : String(currentAmount));
-    }
-  }, [application]);
-
-  const handleReleaseAmount = async () => {
-    const amount = Number(releaseAmount);
-    if (!releaseAmount.trim() || !Number.isFinite(amount) || amount < 0) {
-      setError('Enter an amount of 0 or more.');
-      return;
-    }
-    try {
-      setSavingAmount(true);
-      setError('');
-      setSuccess('');
-      const response = await updateReleaseAmount(id, amount);
-      setApplication(response.data);
-      setReleaseAmount(String(response.data.releaseDetails?.amount ?? ''));
-      setSuccess('Release amount updated.');
-    } catch (requestErrorValue) {
-      setError(requestError(requestErrorValue, 'Unable to update the release amount. Please try again.'));
-    } finally {
-      setSavingAmount(false);
-    }
-  };
 
   const loadApplication = async () => {
     try {
@@ -153,6 +124,7 @@ export default function AdminApplicationDetail() {
   const applicant = application.applicant || {};
   const personalInfo = application.personalInfo || {};
   const program = application.program || {};
+  const programAssistance = assistanceValueText(program);
   const availableTransitions = transitions[application.status] || [];
   const isSaving = savingRemarks || Boolean(changingStatus);
 
@@ -176,15 +148,6 @@ export default function AdminApplicationDetail() {
         <p className="mt-1 text-sm text-gray-600">Only valid next steps are available for this application.</p>
         {availableTransitions.length > 0 ? <div className="mt-4 flex flex-wrap gap-3">{availableTransitions.map((transition) => <button className={`min-h-11 rounded-lg px-4 text-sm font-bold text-white disabled:cursor-not-allowed disabled:opacity-60 ${transition.status === 'denied' ? 'bg-red-700' : 'bg-black'}`} key={transition.status} type="button" onClick={() => changeStatus(transition.status, transition.label)} disabled={isSaving}>{changingStatus === transition.status ? 'Saving…' : transition.label}</button>)}</div> : <p className="mt-4 rounded-lg bg-gray-100 p-3 text-sm text-gray-700">This status is final. No further updates are available.</p>}
       </section>
-      <section className="mt-5 rounded-xl border border-gray-200 bg-white p-5 shadow-sm sm:p-6" aria-labelledby="release-amount-heading">
-        <h2 className="text-lg font-bold text-black" id="release-amount-heading">Application release amount</h2>
-        <p className="mt-1 text-sm text-gray-600">Set the cash assistance amount specific to this application. This does not schedule the release or change the application status.</p>
-        <div className="mt-4 flex flex-wrap items-center gap-3">
-          <label className="sr-only" htmlFor="release-amount-input">Release amount</label>
-          <input className="block min-h-11 w-48 rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-black focus:ring-2 focus:ring-black/10" id="release-amount-input" type="number" min="0" step="0.01" placeholder="Amount" value={releaseAmount} onChange={(e) => setReleaseAmount(e.target.value)} disabled={savingAmount} />
-          <button className="min-h-11 rounded-lg bg-black px-4 text-sm font-bold text-white disabled:cursor-not-allowed disabled:opacity-60" type="button" onClick={handleReleaseAmount} disabled={savingAmount}>{savingAmount ? 'Saving…' : 'Save amount'}</button>
-        </div>
-      </section>
 
       <section className="mt-5 rounded-xl border border-gray-200 bg-white p-5 shadow-sm sm:p-6" aria-labelledby="remarks-heading">
         <h2 className="text-lg font-bold text-black" id="remarks-heading">Administrator remarks</h2>
@@ -197,7 +160,7 @@ export default function AdminApplicationDetail() {
         <section className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm"><h2 className="text-lg font-bold text-black">Applicant</h2><dl className="mt-4 grid gap-4 text-sm sm:grid-cols-2"><DataRow label="Name" value={applicant.name} /><DataRow label="Email" value={applicant.email} /><DataRow label="Contact number" value={applicant.contactNo} /><DataRow label="Student ID" value={applicant.studentID} /><DataRow label="Barangay" value={applicant.barangay} /></dl></section>
         <section className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm"><h2 className="text-lg font-bold text-black">Application</h2><dl className="mt-4 grid gap-4 text-sm sm:grid-cols-2"><DataRow label="Submitted" value={formatDate(application.submittedAt)} /><DataRow label="Last updated" value={formatDate(application.updatedAt)} /><DataRow label="Current status" value={statusLabel(application.status)} /></dl></section>
         <section className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm"><h2 className="text-lg font-bold text-black">Personal information</h2><dl className="mt-4 grid gap-4 text-sm sm:grid-cols-2"><DataRow label="Full name" value={personalInfo.fullName} /><DataRow label="Contact number" value={personalInfo.contactNo} /><DataRow label="Address" value={personalInfo.address} /><DataRow label="Birthdate" value={formatDate(personalInfo.birthdate)} /></dl></section>
-        <section className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm"><h2 className="text-lg font-bold text-black">Aid program</h2><dl className="mt-4 grid gap-4 text-sm"><DataRow label="Title" value={program.title} /><DataRow label="Description" value={program.description} /><DataRow label="Eligibility" value={program.eligibility} /><div className="grid gap-4 sm:grid-cols-2"><DataRow label="Category" value={program.category} /><DataRow label="Deadline" value={formatDate(program.deadline)} /><DataRow label="Slots" value={program.slots === undefined || program.slots === null ? '' : String(program.slots)} /><DataRow label="Program status" value={program.status} /></div>{program.releaseDetails?.date && <div className="mt-4 grid gap-4 rounded-lg bg-gray-50 p-3 sm:grid-cols-2"><DataRow label="Program release date" value={formatDate(program.releaseDetails.date)} /><DataRow label="Program release time" value={`${program.releaseDetails.timeStart} - ${program.releaseDetails.timeEnd}`} /><DataRow label="Program release location" value={program.releaseDetails.location} />{program.releaseDetails.instructions && <DataRow label="Release instructions" value={program.releaseDetails.instructions} />}</div>}</dl></section>
+        <section className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm"><h2 className="text-lg font-bold text-black">Aid program</h2><dl className="mt-4 grid gap-4 text-sm"><DataRow label="Title" value={program.title} /><DataRow label="Description" value={program.description} /><DataRow label="Eligibility" value={program.eligibility} />{programAssistance && <DataRow label={program.assistanceType === 'food' ? 'Assistance' : 'Assistance amount'} value={programAssistance} />}<div className="grid gap-4 sm:grid-cols-2"><DataRow label="Category" value={program.category} /><DataRow label="Deadline" value={formatDate(program.deadline)} /><DataRow label="Slots" value={program.slots === undefined || program.slots === null ? '' : String(program.slots)} /><DataRow label="Program status" value={program.status} /></div>{program.releaseDetails?.date && <div className="mt-4 grid gap-4 rounded-lg bg-gray-50 p-3 sm:grid-cols-2"><DataRow label="Program release date" value={formatDate(program.releaseDetails.date)} /><DataRow label="Program release time" value={`${program.releaseDetails.timeStart} - ${program.releaseDetails.timeEnd}`} /><DataRow label="Program release location" value={program.releaseDetails.location} />{program.releaseDetails.instructions && <DataRow label="Release instructions" value={program.releaseDetails.instructions} />}</div>}</dl></section>
       </div>
 
       <section className="mt-5 rounded-xl border border-gray-200 bg-white p-5 shadow-sm sm:p-6" aria-labelledby="documents-heading">

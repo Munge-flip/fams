@@ -6,6 +6,7 @@ import { useAuth } from '../../context/AuthContext';
 import { getPrograms } from '../../services/programService';
 import { getApplications } from '../../services/applicationService';
 import { latestApplicationForProgram } from '../../utils/applications';
+import { assistanceValueText } from '../../utils/assistance';
 
 const formatDeadline = (deadline) => new Intl.DateTimeFormat('en-PH', {
   month: 'short',
@@ -80,11 +81,12 @@ export default function Dashboard() {
 
           {applications.filter(a => a.status === 'approved' && a.program?.status === 'active' && (a.releaseDetails?.date || a.program?.releaseDetails?.date)).map(app => {
             const schedule = app.releaseDetails?.date ? app.releaseDetails : app.program?.releaseDetails;
+            const assistance = assistanceValueText(app.program);
             return (
               <div key={app._id} className="rounded-xl border border-blue-200 bg-blue-50 p-5">
                 <h3 className="text-lg font-bold text-blue-900">Cash assistance release</h3>
                 <p className="mt-1 text-sm text-blue-800">Program: {app.program?.title}</p>
-                {Number(app.releaseDetails?.amount) > 0 && <p className="mt-2 text-lg font-bold text-blue-900">₱{app.releaseDetails.amount}</p>}
+                {assistance && <p className="mt-2 text-lg font-bold text-blue-900">{assistance}</p>}
                 <div className="mt-3 grid grid-cols-2 gap-3 text-sm text-blue-800">
                   <p><strong>Date:</strong> {new Date(schedule.date).toLocaleDateString()}</p>
                   <p><strong>Time:</strong> {schedule.timeStart} - {schedule.timeEnd}</p>

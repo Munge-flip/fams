@@ -24,8 +24,3 @@ export const updateApplicationStatus = async (id, payload) => {
   const response = await api.put(`/applications/${id}/status`, payload);
   return response.data;
 };
-
-export const updateReleaseAmount = async (id, amount) => {
-  const response = await api.patch(`/applications/${id}/release-amount`, { amount });
-  return response.data;
-};

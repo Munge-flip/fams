@@ -252,35 +252,10 @@ const cancelApplication = asyncHandler(async (req, res) => {
   return res.status(200).json({ success: true, data: { message: 'Application cancelled successfully.' } });
 });
 
-const updateReleaseAmount = asyncHandler(async (req, res) => {
-  if (!isValidObjectId(req.params.id)) {
-    return res.status(400).json({ success: false, message: 'Invalid application identifier.' });
-  }
-
-  const { amount } = req.body || {};
-  if (typeof amount !== 'number' || !Number.isFinite(amount) || amount < 0) {
-    return res.status(400).json({ success: false, message: 'Release amount must be a non-negative number.' });
-  }
-
-  const application = await Application.findById(req.params.id);
-  if (!application) {
-    return res.status(404).json({ success: false, message: 'Application not found.' });
-  }
-
-  application.releaseDetails = {
-    ...application.releaseDetails,
-    amount: Math.round(amount * 100) / 100,
-  };
-  await application.save();
-
-  return res.status(200).json({ success: true, data: application });
-});
-
 module.exports = {
   cancelApplication,
   createApplication,
   getApplication,
   listApplications,
   updateApplicationStatus,
-  updateReleaseAmount,
 };
