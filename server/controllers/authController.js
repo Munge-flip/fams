@@ -13,6 +13,22 @@ const updateableProfileFields = ['name', 'studentID', 'course', 'yearLevel', 'ba
 
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
+// Single definition of the password policy, shared by registration and password changes.
+const validatePassword = (password) => {
+  if (typeof password !== 'string') {
+    return 'Password must be a string.';
+  }
+  if (password.length < 8) {
+    return 'Password must be at least 8 characters.';
+  }
+  if (!/[A-Z]/.test(password)) return 'Password must contain at least one uppercase letter.';
+  if (!/[a-z]/.test(password)) return 'Password must contain at least one lowercase letter.';
+  if (!/[0-9]/.test(password)) return 'Password must contain at least one number.';
+  if (!/[^A-Za-z0-9]/.test(password)) return 'Password must contain at least one special character.';
+
+  return null;
+};
+
 const toSafeUser = (user) => {
   const { password, ...safeUser } = user.toObject();
   return safeUser;
@@ -36,16 +52,10 @@ const validateRegistration = (body) => {
     return 'A valid email address is required.';
   }
 
-  if (typeof body.password !== 'string') {
-    return 'Password must be a string.';
+  const passwordError = validatePassword(body.password);
+  if (passwordError) {
+    return passwordError;
   }
-  if (body.password.length < 8) {
-    return 'Password must be at least 8 characters.';
-  }
-  if (!/[A-Z]/.test(body.password)) return 'Password must contain at least one uppercase letter.';
-  if (!/[a-z]/.test(body.password)) return 'Password must contain at least one lowercase letter.';
-  if (!/[0-9]/.test(body.password)) return 'Password must contain at least one number.';
-  if (!/[^A-Za-z0-9]/.test(body.password)) return 'Password must contain at least one special character.';
 
   if (!['student', 'resident'].includes(body.role)) {
     return 'Role must be student or resident.';
@@ -306,4 +316,94 @@ const submitVerificationProfile = asyncHandler(async (req, res) => {
   res.status(200).json({ success: true, data: toSafeUser(user) });
 });
 
-module.exports = { register, login, logout, me, updateProfile, submitVerificationProfile };
+// Credential changes always re-check the current password, so a hijacked session alone
+// cannot take over the account. The signed-in session stays valid (tokens carry the id,
+// and `protect` resolves the user by id), so no re-login or new token flow is needed.
+const changeEmail = asyncHandler(async (req, res) => {
+  const body = req.body;
+  if (!body || typeof body !== 'object' || Array.isArray(body)) {
+    return res.status(400).json({ success: false, message: 'A JSON object is required.' });
+  }
+
+  const unexpectedField = Object.keys(body).find((field) => !['email', 'currentPassword'].includes(field));
+  if (unexpectedField) {
+    return res.status(400).json({ success: false, message: `Unexpected field: ${unexpectedField}.` });
+  }
+
+  if (typeof body.email !== 'string' || !emailPattern.test(body.email.trim())) {
+    return res.status(400).json({ success: false, message: 'Enter a valid email address.' });
+  }
+
+  if (typeof body.currentPassword !== 'string' || !body.currentPassword) {
+    return res.status(400).json({ success: false, message: 'Enter your current password to confirm this change.' });
+  }
+
+  const email = body.email.trim().toLowerCase();
+  const user = await User.findById(req.user._id).select('+password');
+  if (!user || !(await bcrypt.compare(body.currentPassword, user.password))) {
+    return res.status(401).json({ success: false, message: 'Your current password is incorrect.' });
+  }
+
+  if (email !== user.email) {
+    const existing = await User.findOne({ email, _id: { $ne: user._id } });
+    if (existing) {
+      return res.status(409).json({ success: false, message: 'That email address is already used by another account.' });
+    }
+
+    user.email = email;
+    await user.save();
+  }
+
+  return res.status(200).json({ success: true, data: { message: 'Changes saved successfully.', user: toSafeUser(user) } });
+});
+
+const changePassword = asyncHandler(async (req, res) => {
+  const body = req.body;
+  if (!body || typeof body !== 'object' || Array.isArray(body)) {
+    return res.status(400).json({ success: false, message: 'A JSON object is required.' });
+  }
+
+  const unexpectedField = Object.keys(body).find((field) => !['currentPassword', 'newPassword', 'confirmPassword'].includes(field));
+  if (unexpectedField) {
+    return res.status(400).json({ success: false, message: `Unexpected field: ${unexpectedField}.` });
+  }
+
+  if (typeof body.currentPassword !== 'string' || !body.currentPassword) {
+    return res.status(400).json({ success: false, message: 'Enter your current password to confirm this change.' });
+  }
+
+  if (typeof body.newPassword !== 'string' || !body.newPassword) {
+    return res.status(400).json({ success: false, message: 'Enter your new password.' });
+  }
+
+  if (body.confirmPassword !== undefined && body.confirmPassword !== body.newPassword) {
+    return res.status(400).json({ success: false, message: 'The new passwords you entered do not match.' });
+  }
+
+  const passwordError = validatePassword(body.newPassword);
+  if (passwordError) {
+    return res.status(400).json({ success: false, message: passwordError });
+  }
+
+  const user = await User.findById(req.user._id).select('+password');
+  if (!user || !(await bcrypt.compare(body.currentPassword, user.password))) {
+    return res.status(401).json({ success: false, message: 'Your current password is incorrect.' });
+  }
+
+  user.password = await bcrypt.hash(body.newPassword, 12);
+  await user.save();
+
+  return res.status(200).json({ success: true, data: { message: 'Changes saved successfully.' } });
+});
+
+module.exports = {
+  changeEmail,
+  changePassword,
+  register,
+  login,
+  logout,
+  me,
+  updateProfile,
+  submitVerificationProfile,
+};
+

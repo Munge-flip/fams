@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import PasswordField from '../../components/PasswordField';
 import { useAuth } from '../../context/AuthContext';
+import { meetsPasswordRequirements } from '../../utils/password';
 
 const initialForm = {
   name: '',
@@ -58,14 +60,7 @@ export default function Register() {
       return;
     }
 
-    const reqs = {
-      length: form.password.length >= 8,
-      upper: /[A-Z]/.test(form.password),
-      lower: /[a-z]/.test(form.password),
-      number: /[0-9]/.test(form.password),
-      special: /[^A-Za-z0-9]/.test(form.password),
-    };
-    if (!Object.values(reqs).every(Boolean)) {
+    if (!meetsPasswordRequirements(form.password)) {
       setError('Your password does not meet the minimum requirements.');
       return;
     }
@@ -156,60 +151,6 @@ export default function Register() {
         <p className="mt-6 text-center text-sm text-gray-600">Already have an account? <Link className="font-semibold text-black underline underline-offset-4" to="/login">Sign in</Link></p>
       </section>
     </main>
-  );
-}
-
-function PasswordField({ label, name, value, onChange, disabled, showRequirements }) {
-  const [show, setShow] = useState(false);
-
-  const reqs = {
-    length: value.length >= 8,
-    upper: /[A-Z]/.test(value),
-    lower: /[a-z]/.test(value),
-    number: /[0-9]/.test(value),
-    special: /[^A-Za-z0-9]/.test(value),
-  };
-
-  const score = Object.values(reqs).filter(Boolean).length;
-  const strength = score === 0 ? 'None' : score <= 2 ? 'Weak' : score <= 4 ? 'Fair' : 'Strong';
-  const strengthColor = score === 0 ? 'bg-gray-200' : score <= 2 ? 'bg-red-500' : score <= 4 ? 'bg-yellow-500' : 'bg-green-500';
-
-  return (
-    <div className="block">
-      <div className="flex items-center justify-between text-sm font-medium text-gray-900">
-        <label htmlFor={name}>{label}</label>
-        <button type="button" className="text-xs text-gray-500 underline focus:outline-none" onClick={() => setShow(!show)}>
-          {show ? 'Hide' : 'Show'}
-        </button>
-      </div>
-      <input
-        className="mt-2 block w-full rounded-lg border border-gray-300 bg-white px-3 py-3 text-base text-gray-950 outline-none transition focus:border-black focus:ring-2 focus:ring-black/15 disabled:bg-gray-100"
-        id={name}
-        name={name}
-        type={show ? 'text' : 'password'}
-        value={value}
-        onChange={onChange}
-        disabled={disabled}
-        autoComplete={name === 'password' || name === 'confirmPassword' ? 'new-password' : 'off'}
-      />
-      {showRequirements && (
-        <div className="mt-4 space-y-2">
-          <div className="flex gap-1 h-1.5 w-full rounded-full overflow-hidden bg-gray-100">
-            {[1, 2, 3, 4, 5].map((i) => (
-              <div key={i} className={`flex-1 ${score >= i ? strengthColor : 'bg-gray-200'}`} />
-            ))}
-          </div>
-          <p className="text-xs font-semibold text-gray-700">Password strength: {strength}</p>
-          <ul className="text-xs space-y-1 mt-2 text-gray-600">
-            <li className={`flex gap-2 ${reqs.length ? 'text-green-700 font-semibold' : ''}`}><span>{reqs.length ? '✓' : '○'}</span> <span>At least 8 characters</span></li>
-            <li className={`flex gap-2 ${reqs.upper ? 'text-green-700 font-semibold' : ''}`}><span>{reqs.upper ? '✓' : '○'}</span> <span>At least one uppercase letter</span></li>
-            <li className={`flex gap-2 ${reqs.lower ? 'text-green-700 font-semibold' : ''}`}><span>{reqs.lower ? '✓' : '○'}</span> <span>At least one lowercase letter</span></li>
-            <li className={`flex gap-2 ${reqs.number ? 'text-green-700 font-semibold' : ''}`}><span>{reqs.number ? '✓' : '○'}</span> <span>At least one number</span></li>
-            <li className={`flex gap-2 ${reqs.special ? 'text-green-700 font-semibold' : ''}`}><span>{reqs.special ? '✓' : '○'}</span> <span>At least one special character</span></li>
-          </ul>
-        </div>
-      )}
-    </div>
   );
 }
 

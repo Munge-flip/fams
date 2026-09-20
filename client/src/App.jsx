@@ -17,7 +17,7 @@ import AdminApplicationDetail from './pages/admin/AdminApplicationDetail';
 import AdminUsers from './pages/admin/AdminUsers';
 import AdminUserDetail from './pages/admin/AdminUserDetail';
 import AdminProgramBeneficiaries from './pages/admin/AdminProgramBeneficiaries';
-import AdminSectionPlaceholder from './pages/admin/AdminSectionPlaceholder';
+import AdminAccount from './pages/admin/AdminAccount';
 
 export default function App() {
   return (
@@ -45,7 +45,7 @@ export default function App() {
           <Route path="applications/:id" element={<AdminApplicationDetail />} />
           <Route path="users" element={<AdminUsers />} />
           <Route path="users/:id" element={<AdminUserDetail />} />
-          <Route path="account" element={<AdminSectionPlaceholder title="Account" />} />
+          <Route path="account" element={<AdminAccount />} />
           <Route path="*" element={<Navigate to="/admin" replace />} />
         </Route>
       </Route>
