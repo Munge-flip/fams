@@ -1,11 +1,11 @@
 import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 
-const initialForm = { identifier: '', password: '' };
-
 export default function Login() {
-  const [form, setForm] = useState(initialForm);
+  const { state } = useLocation();
+  const notice = state?.notice || '';
+  const [form, setForm] = useState({ identifier: state?.email || '', password: '' });
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const { login } = useAuth();
@@ -30,6 +30,13 @@ export default function Login() {
       const user = await login({ identifier: form.identifier.trim(), password: form.password });
       navigate(user.role === 'admin' ? '/admin' : '/dashboard', { replace: true });
     } catch (requestError) {
+      // An unconfirmed account is not a failed sign-in: the API has already given the browser
+      // an activation session, so send the user to the code screen that session belongs to.
+      if (requestError.code === 'email_unverified') {
+        navigate('/verify-email', { replace: true, state: { email: requestError.email } });
+        return;
+      }
+
       setError(requestError.message);
     } finally {
       setSubmitting(false);
@@ -44,6 +51,7 @@ export default function Login() {
         <p className="mt-2 text-sm leading-6 text-gray-600">Sign in to manage your financial assistance account.</p>
 
         <form className="mt-8 space-y-5" onSubmit={handleSubmit} noValidate>
+          {notice && !error && <p className="rounded-lg border border-green-200 bg-green-50 px-3 py-2 text-sm text-green-800" role="status">{notice}</p>}
           {error && <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700" role="alert">{error}</p>}
           <label className="block text-sm font-medium text-gray-900" htmlFor="identifier">
             Email or student ID

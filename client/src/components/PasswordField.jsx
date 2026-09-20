@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { PASSWORD_RULES, passwordRequirements } from '../utils/password';
 
 // Password field with live requirement checklist and strength meter. Shared by the
-// registration form and the admin Account page, so the feedback — and the mirrored
+// registration form and the Settings page, so the feedback — and the mirrored
 // rules — cannot drift between the two.
 export default function PasswordField({ autoComplete = 'new-password', disabled, id, label, name, onChange, showRequirements = false, value }) {
   const [show, setShow] = useState(false);

@@ -7,7 +7,7 @@ const navigation = [
   { label: 'Programs', to: '/admin/programs' },
   { label: 'Applications', to: '/admin/applications' },
   { label: 'Users', to: '/admin/users' },
-  { label: 'Account', to: '/admin/account' },
+  { label: 'Settings', to: '/admin/settings' },
 ];
 
 const linkClasses = ({ isActive }) => `flex min-h-11 items-center rounded-lg px-3 text-sm font-semibold transition ${isActive ? 'bg-white text-black shadow-sm' : 'text-gray-300 hover:bg-gray-800 hover:text-white'}`;

@@ -77,8 +77,11 @@ export default function Register() {
 
     setSubmitting(true);
     try {
-      const user = await register(buildPayload());
-      navigate(user.role === 'admin' ? '/admin' : '/dashboard', { replace: true });
+      await register(buildPayload());
+
+      // A fresh beneficiary account cannot sign in yet: registration sets the activation
+      // session, and the code step continues from it.
+      navigate('/verify-email', { replace: true, state: { email: form.email.trim() } });
     } catch (requestError) {
       setError(requestError.message);
     } finally {

@@ -63,7 +63,9 @@ export default function ProgramCard({ program, application }) {
         )}
       </div>
       {!active && !verified && (
-        <p className="mt-2 text-xs leading-5 text-gray-600">Verify your profile before you can apply for this program.</p>
+        <p className="mt-2 text-xs leading-5 text-gray-600">
+          Verify your profile before you can apply for this program.
+        </p>
       )}
       {active && (
         <div className="mt-4 rounded-xl border border-gray-200 bg-gray-50 p-4" role="status">

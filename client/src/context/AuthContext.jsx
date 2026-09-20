@@ -5,6 +5,19 @@ const AuthContext = createContext(null);
 
 const getErrorMessage = (error, fallback) => error.response?.data?.message || fallback;
 
+// A sign-in can be refused for a reason the user can act on — an unconfirmed address, for
+// instance — so the reason code and the address it applies to travel with the error instead
+// of being flattened into a message the screen can only display.
+const authFailure = (error, fallback) => {
+  const failure = new Error(getErrorMessage(error, fallback));
+  const details = error.response?.data?.data;
+
+  failure.code = details?.code;
+  failure.email = details?.email;
+
+  return failure;
+};
+
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -44,18 +57,19 @@ export function AuthProvider({ children }) {
       await loginUser(credentials);
       return await refreshUser();
     } catch (error) {
-      throw new Error(getErrorMessage(error, 'Unable to sign in.'));
+      throw authFailure(error, 'Unable to sign in.');
     }
   }, [refreshUser]);
 
+  // Registration no longer signs anyone in: the account stays unconfirmed until the code is
+  // entered, so it holds an activation ticket rather than a session.
   const register = useCallback(async (details) => {
     try {
-      await registerUser(details);
-      return await refreshUser();
+      return await registerUser(details);
     } catch (error) {
-      throw new Error(getErrorMessage(error, 'Unable to create your account.'));
+      throw authFailure(error, 'Unable to create your account.');
     }
-  }, [refreshUser]);
+  }, []);
 
   const logout = useCallback(async () => {
     try {

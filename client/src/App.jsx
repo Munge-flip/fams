@@ -4,6 +4,7 @@ import { ProtectedRoute, PublicOnlyRoute } from './components/RouteGuards';
 import AdminLayout from './components/AdminLayout';
 import Login from './pages/auth/Login';
 import Register from './pages/auth/Register';
+import VerifyEmail from './pages/auth/VerifyEmail';
 import Dashboard from './pages/dashboard/Dashboard';
 import Programs from './pages/programs/Programs';
 import Apply from './pages/apply/Apply';
@@ -17,15 +18,19 @@ import AdminApplicationDetail from './pages/admin/AdminApplicationDetail';
 import AdminUsers from './pages/admin/AdminUsers';
 import AdminUserDetail from './pages/admin/AdminUserDetail';
 import AdminProgramBeneficiaries from './pages/admin/AdminProgramBeneficiaries';
-import AdminAccount from './pages/admin/AdminAccount';
+import Settings from './pages/settings/Settings';
 
 export default function App() {
   return (
-    <Routes>
+    <>
+      <Routes>
       <Route element={<PublicOnlyRoute />}>
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
       </Route>
+      {/* Reached right after registering and whenever a sign-in is refused, before any
+          session exists: the page runs on the activation ticket alone. */}
+      <Route path="/verify-email" element={<VerifyEmail />} />
       <Route element={<ProtectedRoute />}>
         <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/programs" element={<Programs />} />
@@ -33,8 +38,8 @@ export default function App() {
         <Route path="/applications" element={<Applications />} />
         <Route path="/applications/:id" element={<ApplicationDetail />} />
         <Route path="/profile" element={<Profile />} />
+        <Route path="/settings" element={<Settings withBottomNav />} />
         <Route path="/verification-profile" element={<VerificationProfile />} />
-
       </Route>
       <Route element={<ProtectedRoute adminOnly />}>
         <Route path="/admin" element={<AdminLayout />}>
@@ -45,11 +50,12 @@ export default function App() {
           <Route path="applications/:id" element={<AdminApplicationDetail />} />
           <Route path="users" element={<AdminUsers />} />
           <Route path="users/:id" element={<AdminUserDetail />} />
-          <Route path="account" element={<AdminAccount />} />
+          <Route path="settings" element={<Settings />} />
           <Route path="*" element={<Navigate to="/admin" replace />} />
         </Route>
       </Route>
       <Route path="*" element={<Navigate to="/login" replace />} />
-    </Routes>
+      </Routes>
+    </>
   );
 }

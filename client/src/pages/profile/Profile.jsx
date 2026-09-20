@@ -1,10 +1,9 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import StudentBottomNav from '../../components/StudentBottomNav';
 import { useAuth } from '../../context/AuthContext';
 import { updateProfile } from '../../services/authService';
 const profileFields = [
-  ['email', 'Email address'],
   ['studentID', 'Student ID'],
   ['course', 'Course'],
   ['yearLevel', 'Year level'],
@@ -167,6 +166,18 @@ export default function Profile() {
               </>
             )}
           </div>
+        </section>
+
+        <section className="mt-5 rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
+          <h2 className="text-lg font-bold text-black">Account &amp; security</h2>
+          <p className="mt-2 text-sm leading-6 text-gray-600">
+            Signed in as <span className="font-semibold text-gray-800">{user?.email || 'Email not available'}</span>. Change your email address, add a recovery email, or update your password.
+          </p>
+
+          <Link className="mt-4 flex min-h-11 items-center justify-between rounded-lg border border-gray-300 px-4 text-sm font-semibold text-gray-900" to="/settings">
+            Manage account &amp; security
+            <span aria-hidden="true">›</span>
+          </Link>
         </section>
 
         <section className="mt-5 rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
