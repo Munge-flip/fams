@@ -9,6 +9,7 @@ import { getApplications } from '../../services/applicationService';
 import { latestApplicationForProgram, releasedProgramIds } from '../../utils/applications';
 import { assistanceValueText } from '../../utils/assistance';
 import { cardAccent } from '../../utils/accents';
+import { formatTimeRange } from '../../utils/datetime';
 import { applyProgramFilters, emptyFilters, filterOptions, hasActiveFilters } from '../../utils/programFilters';
 
 const shortDeadline = (deadline) => new Intl.DateTimeFormat('en-PH', {
@@ -100,7 +101,7 @@ export default function Dashboard() {
                 {assistance && <p className="mt-2 text-lg font-bold text-blue-900">{assistance}</p>}
                 <div className="mt-3 grid grid-cols-2 gap-3 text-sm text-blue-800">
                   <p><strong>Date:</strong> {new Date(schedule.date).toLocaleDateString()}</p>
-                  <p><strong>Time:</strong> {schedule.timeStart} - {schedule.timeEnd}</p>
+                  <p><strong>Time:</strong> {formatTimeRange(schedule.timeStart, schedule.timeEnd)}</p>
                   <p className="col-span-2"><strong>Location:</strong> {schedule.location}</p>
                 </div>
                 {schedule.instructions && <p className="mt-3 text-sm text-blue-800 border-t border-blue-200 pt-3"><strong>Instructions:</strong> {schedule.instructions}</p>}

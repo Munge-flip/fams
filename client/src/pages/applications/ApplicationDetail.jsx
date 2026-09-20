@@ -4,6 +4,7 @@ import ApplicationStatus, { StatusBadge } from '../../components/ApplicationStat
 import StudentBottomNav from '../../components/StudentBottomNav';
 import { cancelApplication, getApplication } from '../../services/applicationService';
 import { assistanceLabel, assistanceValueText } from '../../utils/assistance';
+import { formatTimeRange } from '../../utils/datetime';
 
 const documentLabels = { valid_id: 'Valid ID', certificate_of_indigency: 'Certificate of Indigency', grades: 'Grades', other: 'Other supporting document' };
 const formatDate = (value) => value ? new Date(value).toLocaleDateString('en-PH', { year: 'numeric', month: 'long', day: 'numeric' }) : 'Not available';
@@ -62,7 +63,7 @@ export default function ApplicationDetail() {
            <div className="mt-4 space-y-3 text-sm text-blue-900">
              {programAssistance && <p><strong>{programAssistanceLabel}:</strong> {programAssistance}</p>}
              <p><strong>Date:</strong> {new Date(schedule.date).toLocaleDateString()}</p>
-             <p><strong>Time:</strong> {schedule.timeStart} - {schedule.timeEnd}</p>
+             <p><strong>Time:</strong> {formatTimeRange(schedule.timeStart, schedule.timeEnd)}</p>
              <p><strong>Location:</strong> {schedule.location}</p>
              {schedule.instructions && <p><strong>Instructions:</strong> {schedule.instructions}</p>}
            </div>
