@@ -1,10 +1,12 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import ProgramCard from '../../components/ProgramCard';
+import ProgramFilterChips from '../../components/ProgramFilterChips';
 import StudentBottomNav from '../../components/StudentBottomNav';
 import { getPrograms } from '../../services/programService';
 import { getApplications } from '../../services/applicationService';
 import { latestApplicationForProgram } from '../../utils/applications';
+import { applyProgramFilters, emptyFilters, filterOptions, hasActiveFilters } from '../../utils/programFilters';
 
 const byDeadline = (first, second) => new Date(first.deadline) - new Date(second.deadline);
 
@@ -12,6 +14,7 @@ export default function Programs() {
   const [programs, setPrograms] = useState([]);
   const [applications, setApplications] = useState([]);
   const [search, setSearch] = useState('');
+  const [filters, setFilters] = useState(emptyFilters);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
@@ -37,13 +40,14 @@ export default function Programs() {
   }, []);
 
 
+  const options = useMemo(() => filterOptions(programs), [programs]);
+
   const filteredPrograms = useMemo(() => {
     const term = search.trim().toLowerCase();
-    return [...programs]
-      .sort(byDeadline)
+    return applyProgramFilters([...programs].sort(byDeadline), filters)
       .filter((program) => !term || [program.title, program.description, program.eligibility, program.category]
         .some((value) => value?.toLowerCase().includes(term)));
-  }, [programs, search]);
+  }, [programs, search, filters]);
 
   return (
     <main className="min-h-screen bg-gray-50 pb-24">
@@ -64,9 +68,18 @@ export default function Programs() {
           />
         </label>
 
+        {!loading && !error && (
+          <ProgramFilterChips
+            options={options}
+            filters={filters}
+            onChange={(field, value) => setFilters((current) => ({ ...current, [field]: value }))}
+            onClear={() => setFilters(emptyFilters)}
+          />
+        )}
+
         {loading && <p className="mt-5 rounded-xl border border-gray-200 bg-white p-4 text-sm text-gray-600" role="status">Loading aid programs…</p>}
         {error && <div className="mt-5 flex flex-col items-start gap-3 rounded-xl border border-red-200 bg-red-50 p-4"><p className="text-sm text-red-700" role="alert">{error}</p><button onClick={loadPrograms} className="min-h-10 rounded-lg bg-red-100 px-4 text-sm font-bold text-red-800 disabled:opacity-50" disabled={loading}>Retry</button></div>}
-        {!loading && !error && filteredPrograms.length === 0 && <p className="mt-5 rounded-xl border border-gray-200 bg-white p-4 text-sm text-gray-600">No active programs match your search.</p>}
+        {!loading && !error && filteredPrograms.length === 0 && <p className="mt-5 rounded-xl border border-gray-200 bg-white p-4 text-sm text-gray-600">{search.trim() || hasActiveFilters(filters) ? 'No active programs match your search or filters. Try removing a filter.' : 'No active programs are available right now.'}</p>}
         <div className="mt-5 space-y-4">
           {!loading && !error && filteredPrograms.map((program) => <ProgramCard key={program._id} program={program} application={latestApplicationForProgram(applications, program._id)} />)}
         </div>

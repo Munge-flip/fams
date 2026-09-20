@@ -1,17 +1,18 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import ProgramCard from '../../components/ProgramCard';
+import ProgramFilterChips from '../../components/ProgramFilterChips';
 import StudentBottomNav from '../../components/StudentBottomNav';
 import { useAuth } from '../../context/AuthContext';
 import { getPrograms } from '../../services/programService';
 import { getApplications } from '../../services/applicationService';
 import { latestApplicationForProgram } from '../../utils/applications';
 import { assistanceValueText } from '../../utils/assistance';
+import { applyProgramFilters, emptyFilters, filterOptions, hasActiveFilters } from '../../utils/programFilters';
 
-const formatDeadline = (deadline) => new Intl.DateTimeFormat('en-PH', {
+const shortDeadline = (deadline) => new Intl.DateTimeFormat('en-PH', {
   month: 'short',
   day: 'numeric',
-  weekday: 'short',
 }).format(new Date(deadline));
 
 const byDeadline = (first, second) => new Date(first.deadline) - new Date(second.deadline);
@@ -28,6 +29,7 @@ export default function Dashboard() {
   const [programs, setPrograms] = useState([]);
   const [applications, setApplications] = useState([]);
   const [search, setSearch] = useState('');
+  const [filters, setFilters] = useState(emptyFilters);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
@@ -56,13 +58,16 @@ export default function Dashboard() {
   // Deadline calendar stays deadline-ordered; the discovery feed shows the newest programs first.
   const upcomingPrograms = useMemo(() => [...programs].sort(byDeadline), [programs]);
   const newestPrograms = useMemo(() => [...programs].sort(byCreation), [programs]);
+  const options = useMemo(() => filterOptions(programs), [programs]);
   const discoveryPrograms = useMemo(() => {
     const term = search.trim().toLowerCase();
-    if (!term) return newestPrograms.slice(0, 3);
+    const matching = applyProgramFilters(newestPrograms, filters)
+      .filter((program) => !term || [program.title, program.description, program.eligibility, program.category]
+        .some((value) => value?.toLowerCase().includes(term)));
 
-    return newestPrograms.filter((program) => [program.title, program.description, program.eligibility, program.category]
-      .some((value) => value?.toLowerCase().includes(term)));
-  }, [search, newestPrograms]);
+    // Without a search term the feed stays a preview of the newest matches.
+    return term ? matching : matching.slice(0, 3);
+  }, [search, newestPrograms, filters]);
 
   return (
     <main className="min-h-screen bg-gray-50 pb-24">
@@ -109,22 +114,17 @@ export default function Dashboard() {
             <Link className="min-h-11 rounded-lg px-3 py-2 text-sm font-semibold text-black underline underline-offset-4" to="/programs">Browse all</Link>
           </div>
           {loading && <p className="mt-4 rounded-xl border border-gray-200 bg-white p-4 text-sm text-gray-600" role="status">Loading program deadlines…</p>}
-          {error && <div className="mt-4 flex flex-col items-start gap-3 rounded-xl border border-red-200 bg-red-50 p-4"><p className="text-sm text-red-700" role="alert">{error}</p><button onClick={loadPrograms} className="min-h-10 rounded-lg bg-red-100 px-4 text-sm font-bold text-red-800 disabled:opacity-50" disabled={loading}>Retry</button></div>}
+          {error && <div className="mt-4 flex flex-col items-start gap-3 rounded-xl border border-red-200 bg-red-50 p-4"><p className="text-sm text-red-700" role="alert">{error}</p><button onClick={loadData} className="min-h-10 rounded-lg bg-red-100 px-4 text-sm font-bold text-red-800 disabled:opacity-50" disabled={loading}>Retry</button></div>}
           {!loading && !error && upcomingPrograms.length === 0 && <p className="mt-4 rounded-xl border border-gray-200 bg-white p-4 text-sm text-gray-600">No active program deadlines are available right now.</p>}
           {!loading && !error && upcomingPrograms.length > 0 && (
-            <div className="mt-4 grid gap-3 sm:grid-cols-2">
+            <ul className="-mx-5 mt-4 flex gap-2 overflow-x-auto px-5 pb-1 sm:-mx-8 sm:px-8">
               {upcomingPrograms.slice(0, 4).map((program) => (
-                <div className="flex items-center gap-3 rounded-xl border border-gray-200 bg-white p-3" key={program._id}>
-                  <time className="grid h-12 w-12 shrink-0 place-items-center rounded-lg bg-black text-center text-xs font-semibold leading-4 text-white" dateTime={program.deadline}>
-                    {new Intl.DateTimeFormat('en-PH', { month: 'short', day: 'numeric' }).format(new Date(program.deadline))}
-                  </time>
-                  <div className="min-w-0">
-                    <p className="truncate text-sm font-semibold text-black">{program.title}</p>
-                    <p className="mt-1 text-xs text-gray-600">{formatDeadline(program.deadline)}</p>
-                  </div>
-                </div>
+                <li className="w-28 shrink-0 rounded-lg border border-gray-200 bg-white px-3 py-2" key={program._id}>
+                  <time className="block text-xs font-bold text-gray-700" dateTime={program.deadline}>{shortDeadline(program.deadline)}</time>
+                  <p className="mt-1 truncate text-sm font-semibold text-black" title={program.title}>{program.title}</p>
+                </li>
               ))}
-            </div>
+            </ul>
           )}
         </section>
 
@@ -141,7 +141,15 @@ export default function Dashboard() {
               onChange={(event) => setSearch(event.target.value)}
             />
           </label>
-          {!loading && !error && discoveryPrograms.length === 0 && <p className="mt-4 rounded-xl border border-gray-200 bg-white p-4 text-sm text-gray-600">No active programs match your search.</p>}
+          {!loading && !error && (
+            <ProgramFilterChips
+              options={options}
+              filters={filters}
+              onChange={(field, value) => setFilters((current) => ({ ...current, [field]: value }))}
+              onClear={() => setFilters(emptyFilters)}
+            />
+          )}
+          {!loading && !error && discoveryPrograms.length === 0 && <p className="mt-4 rounded-xl border border-gray-200 bg-white p-4 text-sm text-gray-600">{search.trim() || hasActiveFilters(filters) ? 'No active programs match your search or filters. Try removing a filter.' : 'No active programs are available right now.'}</p>}
           <div className="mt-4 space-y-4">
             {!loading && !error && discoveryPrograms.map((program) => <ProgramCard key={program._id} program={program} application={latestApplicationForProgram(applications, program._id)} />)}
           </div>

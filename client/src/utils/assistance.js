@@ -13,3 +13,10 @@ export const assistanceValueText = (program) => {
 };
 
 export const assistanceLabel = (program) => (program?.assistanceType === 'food' ? 'Assistance' : 'Amount');
+
+export const assistanceTypeLabels = {
+  cash: 'Cash Assistance',
+  food: 'Food Assistance',
+};
+
+export const assistanceTypeLabel = (assistanceType) => assistanceTypeLabels[assistanceType] || 'Assistance';
