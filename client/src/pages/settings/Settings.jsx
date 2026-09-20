@@ -48,7 +48,7 @@ export default function Settings({ withBottomNav = false }) {
 
       <section aria-labelledby="settings-password-heading" className={`mt-6 ${sectionClass}`}>
         <h2 className={headingClass} id="settings-password-heading">Password</h2>
-        <p className={sectionCopyClass}>Choose a new password. You stay signed in on this device after saving.</p>
+        <p className={sectionCopyClass}>Choose a new password, then confirm the 6-digit code we send to your primary email. You stay signed in on this device after saving.</p>
         <PasswordChangeForm />
       </section>
     </>

@@ -414,6 +414,8 @@ const submitVerificationProfile = asyncHandler(async (req, res) => {
 
 // Email changes are confirmed with a short-lived code sent to the NEW address, so a
 // mistyped or hijacked session cannot move the account somewhere the owner cannot reach.
+// A password change runs on the same machinery as a second factor: the code goes to the
+// account's own address and the replacement password waits, hashed, until it comes back.
 // The same flow serves admins and beneficiaries, and both the primary and recovery email.
 const EMAIL_CODE_TTL_MINUTES = 15;
 const EMAIL_CODE_RESEND_SECONDS = 60;
@@ -483,10 +485,11 @@ const authorizeEmailChange = async (req, res) => {
   return user;
 };
 
-// Issues the code for a pending verification, whichever address it targets. Returns a
-// result instead of writing the response so callers (registration, resend, email change)
-// can shape their own payload with the same expiry, cooldown and delivery rules.
-const sendVerificationCodeFor = async ({ user, target, email }) => {
+// Issues the code for a pending verification, whichever change it targets. Returns a
+// result instead of writing the response so callers (registration, resend, email change,
+// password change) can shape their own payload with the same expiry, cooldown and delivery
+// rules. `extraFields` carries whatever that change needs parked alongside the code.
+const sendVerificationCodeFor = async ({ user, target, email, extraFields = {} }) => {
   const pending = await EmailVerification.findOne({ user: user._id });
   // A failed delivery never costs the user a wait: there is no code in their inbox to sit out.
   if (pending && !pending.deliveryFailed) {
@@ -506,10 +509,22 @@ const sendVerificationCodeFor = async ({ user, target, email }) => {
   const sentAt = new Date();
   const expiresAt = new Date(sentAt.getTime() + EMAIL_CODE_TTL_MINUTES * 60 * 1000);
 
-  // One pending code per account: replacing the record invalidates any code sent before.
+  // One pending code per account: replacing the record invalidates any code sent before, and
+  // because a code belongs to exactly one change, anything a previous change parked (today
+  // only a hashed replacement password) is cleared unless this code parks its own.
   await EmailVerification.findOneAndUpdate(
     { user: user._id },
-    { user: user._id, target, pendingEmail: email, codeHash: await bcrypt.hash(code, 12), expiresAt, sentAt, attempts: 0, deliveryFailed: false },
+    {
+      user: user._id,
+      target,
+      pendingEmail: email,
+      pendingPasswordHash: extraFields.pendingPasswordHash ?? null,
+      codeHash: await bcrypt.hash(code, 12),
+      expiresAt,
+      sentAt,
+      attempts: 0,
+      deliveryFailed: false,
+    },
     { upsert: true, returnDocument: 'after', setDefaultsOnInsert: true },
   );
 
@@ -542,9 +557,10 @@ const sendVerificationCodeFor = async ({ user, target, email }) => {
   };
 };
 
-// Shared by the two flows that send a code to the recovery address or the primary one.
-const issueEmailChangeCode = async (req, res, { user, target, email }) => {
-  const issued = await sendVerificationCodeFor({ user, target, email });
+// Shared by every flow that parks a change behind a code: the primary email, the recovery
+// email, and the password.
+const issueVerificationCode = async (req, res, { user, target, email, extraFields }) => {
+  const issued = await sendVerificationCodeFor({ user, target, email, extraFields });
 
   if (!issued.ok) {
     const data = issued.resendAfterSeconds ? { resendAfterSeconds: issued.resendAfterSeconds } : undefined;
@@ -577,7 +593,7 @@ const requestEmailChange = asyncHandler(async (req, res) => {
     return res.status(409).json({ success: false, message: 'That email address is already used by another account.' });
   }
 
-  return issueEmailChangeCode(req, res, { user, target: 'email', email });
+  return issueVerificationCode(req, res, { user, target: 'email', email });
 });
 
 // A first recovery email is simply recorded (there is nothing to protect yet); changing an
@@ -600,7 +616,7 @@ const setRecoveryEmail = asyncHandler(async (req, res) => {
     return res.status(200).json({ success: true, data: { message: 'Recovery email added.', recoveryEmail: email, user: toSafeUser(user) } });
   }
 
-  return issueEmailChangeCode(req, res, { user, target: 'recoveryEmail', email });
+  return issueVerificationCode(req, res, { user, target: 'recoveryEmail', email });
 });
 
 // Clearing the recovery email protects nothing, so it only needs the current password.
@@ -677,6 +693,22 @@ const confirmVerificationCode = asyncHandler(async (req, res) => {
     return res.status(200).json({ success: true, data: { message: 'Your email address is verified.', user: toSafeUser(user) } });
   }
 
+  if (pending.target === 'password') {
+    // Nothing is parked without a hash, so a record that lost it (or never had one) is dead:
+    // drop it and make the user start over rather than leaving a code that does nothing.
+    if (!pending.pendingPasswordHash) {
+      await EmailVerification.deleteOne({ _id: pending._id });
+      return res.status(400).json({ success: false, message: 'There is no password change waiting. Start again with your new password.' });
+    }
+
+    // The parked hash was computed when the code was issued, so it is applied as-is.
+    user.password = pending.pendingPasswordHash;
+    await user.save();
+    await EmailVerification.deleteOne({ _id: pending._id });
+
+    return res.status(200).json({ success: true, data: { message: 'Your password has been updated.', user: toSafeUser(user) } });
+  }
+
   if (pending.target === 'recoveryEmail') {
     if (pending.pendingEmail === user.email) {
       await EmailVerification.deleteOne({ _id: pending._id });
@@ -722,10 +754,18 @@ const changePassword = asyncHandler(async (req, res) => {
     return res.status(400).json({ success: false, message: passwordError });
   }
 
-  user.password = await bcrypt.hash(newPassword, 12);
-  await user.save();
+  // The replacement is parked hashed and only applied when the code sent to the account's own
+  // address comes back, so the current password keeps working until then. The code goes to the
+  // primary email because a password change has no new address to prove control of — this
+  // step is a second factor, not an ownership check.
+  const pendingPasswordHash = await bcrypt.hash(newPassword, 12);
 
-  return res.status(200).json({ success: true, data: { message: 'Changes saved successfully.' } });
+  return issueVerificationCode(req, res, {
+    user,
+    target: 'password',
+    email: user.email,
+    extraFields: { pendingPasswordHash },
+  });
 });
 
 module.exports = {
