@@ -35,3 +35,15 @@ export const activeApplicationForProgram = (applications, programId) => {
   const latest = latestApplicationForProgram(applications, programId);
   return isActiveApplication(latest) ? latest : null;
 };
+
+// Status reached when the aid has been handed over (see the Application status enum).
+export const RELEASED_APPLICATION_STATUS = 'cash_released';
+
+// Programs the current beneficiary has already received aid for. Their deadline is no
+// longer actionable for that user, while every other user keeps seeing the program.
+export const releasedProgramIds = (applications) => new Set(
+  (Array.isArray(applications) ? applications : [])
+    .filter((application) => application?.status === RELEASED_APPLICATION_STATUS)
+    .map((application) => programIdOf(application))
+    .filter(Boolean),
+);

@@ -6,7 +6,7 @@ import StudentBottomNav from '../../components/StudentBottomNav';
 import { useAuth } from '../../context/AuthContext';
 import { getPrograms } from '../../services/programService';
 import { getApplications } from '../../services/applicationService';
-import { latestApplicationForProgram } from '../../utils/applications';
+import { latestApplicationForProgram, releasedProgramIds } from '../../utils/applications';
 import { assistanceValueText } from '../../utils/assistance';
 import { applyProgramFilters, emptyFilters, filterOptions, hasActiveFilters } from '../../utils/programFilters';
 
@@ -56,7 +56,12 @@ export default function Dashboard() {
 
 
   // Deadline calendar stays deadline-ordered; the discovery feed shows the newest programs first.
-  const upcomingPrograms = useMemo(() => [...programs].sort(byDeadline), [programs]);
+  // A beneficiary who has already received the aid drops out of their own calendar only.
+  const releasedForUser = useMemo(() => releasedProgramIds(applications), [applications]);
+  const upcomingPrograms = useMemo(
+    () => programs.filter((program) => !releasedForUser.has(String(program._id))).sort(byDeadline),
+    [programs, releasedForUser],
+  );
   const newestPrograms = useMemo(() => [...programs].sort(byCreation), [programs]);
   const options = useMemo(() => filterOptions(programs), [programs]);
   const discoveryPrograms = useMemo(() => {
