@@ -8,6 +8,9 @@ const { isPlainObject, isValidDate, isValidObjectId } = require('../utils/valida
 const applicationFields = ['program', 'personalInfo', 'documents'];
 const personalInfoFields = ['fullName', 'address', 'contactNo', 'birthdate'];
 const statuses = ['submitted', 'under_review', 'approved', 'denied', 'cash_released'];
+// A beneficiary may only reapply after `denied`; every other status is an active
+// claim on the program (cash_released is the completed form of an approval).
+const activeApplicationStatuses = ['submitted', 'under_review', 'approved', 'cash_released'];
 const transitions = {
   submitted: ['under_review'],
   under_review: ['approved', 'denied'],
@@ -138,6 +141,16 @@ const createApplication = asyncHandler(async (req, res) => {
 
   if (program.deadline.getTime() < Date.now()) {
     return res.status(400).json({ success: false, message: 'The program deadline has passed.' });
+  }
+
+  const activeApplication = await Application.findOne({
+    applicant: req.user._id,
+    program: program._id,
+    status: { $in: activeApplicationStatuses },
+  });
+
+  if (activeApplication) {
+    return res.status(409).json({ success: false, message: 'You already have an active application for this program.' });
   }
 
   const applicationCount = await Application.countDocuments({ program: program._id });

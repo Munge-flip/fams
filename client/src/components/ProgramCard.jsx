@@ -1,5 +1,7 @@
 import { Link } from 'react-router-dom';
+import { StatusBadge } from './ApplicationStatus';
 import { useAuth } from '../context/AuthContext';
+import { isActiveApplication } from '../utils/applications';
 
 const categoryLabels = {
   scholarship: 'Scholarship',
@@ -32,10 +34,11 @@ const formatDeadline = (deadline) => new Intl.DateTimeFormat('en-PH', {
   year: 'numeric',
 }).format(new Date(deadline));
 
-export default function ProgramCard({ program }) {
+export default function ProgramCard({ program, application }) {
   const { user } = useAuth();
   const verified = user?.verificationStatus === 'verified';
   const assistance = assistanceDetails(program);
+  const active = isActiveApplication(application);
 
   return (
     <article className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
@@ -60,12 +63,24 @@ export default function ProgramCard({ program }) {
       )}
       <div className="mt-4 flex items-center justify-between gap-3">
         <p className="text-sm font-semibold text-black">{program.slots} available slots</p>
-        {verified ? (
+        {active ? (
+          <StatusBadge status={application.status} />
+        ) : verified ? (
           <Link className="inline-flex min-h-11 items-center rounded-lg bg-black px-3 py-2 text-sm font-semibold text-white" to={`/apply?program=${program._id}`}>Apply now</Link>
         ) : (
           <Link className="inline-flex min-h-11 items-center rounded-lg bg-gray-200 px-3 py-2 text-sm font-semibold text-gray-800" to="/verification-profile">Verify profile to apply</Link>
         )}
       </div>
+      {active && (
+        <div className="mt-4 rounded-xl border border-gray-200 bg-gray-50 p-4" role="status">
+          <p className="text-sm font-semibold text-black">You already have an active application for this program.</p>
+          <p className="mt-1 text-sm leading-5 text-gray-700">You can apply again only if this application is denied.</p>
+          <Link className="mt-3 inline-flex min-h-11 items-center text-sm font-semibold text-black underline underline-offset-4" to={`/applications/${application._id}`}>View my application</Link>
+        </div>
+      )}
+      {!active && verified && application?.status === 'denied' && (
+        <p className="mt-4 rounded-xl border border-gray-200 bg-gray-50 p-4 text-sm leading-5 text-gray-700">Your previous application for this program was denied. You can apply again.</p>
+      )}
     </article>
   );
 }

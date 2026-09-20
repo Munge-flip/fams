@@ -1,10 +1,12 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import StudentBottomNav from '../../components/StudentBottomNav';
+import { StatusBadge } from '../../components/ApplicationStatus';
 import { useAuth } from '../../context/AuthContext';
-import { createApplication } from '../../services/applicationService';
+import { createApplication, getApplications } from '../../services/applicationService';
 import { uploadDocument } from '../../services/documentService';
 import { getProgramById } from '../../services/programService';
+import { activeApplicationForProgram } from '../../utils/applications';
 
 const documentLabels = {
   valid_id: 'Valid ID',
@@ -32,6 +34,7 @@ export default function Apply() {
   const programId = searchParams.get('program');
   const [program, setProgram] = useState(null);
   const [loadingProgram, setLoadingProgram] = useState(true);
+  const [activeApplication, setActiveApplication] = useState(null);
   const [step, setStep] = useState(1);
   const [personalInfo, setPersonalInfo] = useState({
     fullName: user?.name || '',
@@ -56,11 +59,17 @@ export default function Apply() {
     setLoadingProgram(true);
     setError('');
     try {
-      const result = await getProgramById(programId);
+      // The applications request is best-effort: a failure here must not hide the
+      // program, and the API still rejects duplicate submissions on save.
+      const [result, applicationsResult] = await Promise.all([
+        getProgramById(programId),
+        getApplications().catch(() => null),
+      ]);
       if (!result || !result.data) {
         setError('The selected aid program is no longer available.');
       } else {
         setProgram(result.data);
+        setActiveApplication(activeApplicationForProgram(applicationsResult?.data, programId));
       }
     } catch (requestError) {
       setError(errorMessage(requestError, 'Unable to load the selected aid program.'));
@@ -189,6 +198,27 @@ export default function Apply() {
 
   if (loadingProgram) return <main className="grid min-h-screen place-items-center bg-gray-50 p-5 text-sm text-gray-600" role="status">Loading application form…</main>;
   if (error && !program) return <main className="grid min-h-screen place-items-center bg-gray-50 p-5"><section className="max-w-md rounded-2xl border border-red-200 bg-white p-6 text-center"><p className="text-sm text-red-700" role="alert">{error}</p><div className="mt-4 flex justify-center gap-3"><button onClick={loadProgram} className="inline-flex min-h-11 items-center rounded-lg bg-gray-200 px-4 text-sm font-semibold text-gray-800 hover:bg-gray-300">Retry</button><Link className="inline-flex min-h-11 items-center rounded-lg bg-black px-4 text-sm font-semibold text-white" to="/programs">Browse programs</Link></div></section></main>;
+
+  if (activeApplication) {
+    return (
+      <main className="grid min-h-screen place-items-center bg-gray-50 p-5 pb-24">
+        <section className="max-w-md rounded-2xl border border-gray-200 bg-white p-6 shadow-sm" role="status">
+          <p className="text-sm font-bold uppercase tracking-wide text-gray-600">Active application</p>
+          <h1 className="mt-2 text-2xl font-bold tracking-tight text-black">{program.title}</h1>
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            <StatusBadge status={activeApplication.status} />
+            <span className="text-sm text-gray-600">Submitted {dateValue(activeApplication.submittedAt)}</span>
+          </div>
+          <p className="mt-4 text-sm leading-6 text-gray-700">You already have an active application for this program. You can apply again only if this application is denied.</p>
+          <div className="mt-5 flex flex-col justify-center gap-3 sm:flex-row">
+            <Link className="inline-flex min-h-11 items-center justify-center rounded-lg bg-black px-4 text-sm font-semibold text-white" to={`/applications/${activeApplication._id}`}>View my application</Link>
+            <Link className="inline-flex min-h-11 items-center justify-center rounded-lg bg-gray-200 px-4 text-sm font-semibold text-gray-800" to="/programs">Browse other programs</Link>
+          </div>
+        </section>
+        <StudentBottomNav />
+      </main>
+    );
+  }
 
   return (
     <main className="min-h-screen bg-gray-50 pb-24">

@@ -5,6 +5,7 @@ import StudentBottomNav from '../../components/StudentBottomNav';
 import { useAuth } from '../../context/AuthContext';
 import { getPrograms } from '../../services/programService';
 import { getApplications } from '../../services/applicationService';
+import { latestApplicationForProgram } from '../../utils/applications';
 
 const formatDeadline = (deadline) => new Intl.DateTimeFormat('en-PH', {
   month: 'short',
@@ -131,7 +132,7 @@ export default function Dashboard() {
           </label>
           {!loading && !error && discoveryPrograms.length === 0 && <p className="mt-4 rounded-xl border border-gray-200 bg-white p-4 text-sm text-gray-600">No active programs match your search.</p>}
           <div className="mt-4 space-y-4">
-            {!loading && !error && discoveryPrograms.map((program) => <ProgramCard key={program._id} program={program} />)}
+            {!loading && !error && discoveryPrograms.map((program) => <ProgramCard key={program._id} program={program} application={latestApplicationForProgram(applications, program._id)} />)}
           </div>
         </section>
       </div>

@@ -3,11 +3,14 @@ import { Link } from 'react-router-dom';
 import ProgramCard from '../../components/ProgramCard';
 import StudentBottomNav from '../../components/StudentBottomNav';
 import { getPrograms } from '../../services/programService';
+import { getApplications } from '../../services/applicationService';
+import { latestApplicationForProgram } from '../../utils/applications';
 
 const byDeadline = (first, second) => new Date(first.deadline) - new Date(second.deadline);
 
 export default function Programs() {
   const [programs, setPrograms] = useState([]);
+  const [applications, setApplications] = useState([]);
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -16,8 +19,12 @@ export default function Programs() {
     try {
       setLoading(true);
       setError('');
-      const response = await getPrograms();
-      setPrograms(response.data);
+      const [programsResponse, applicationsResponse] = await Promise.all([
+        getPrograms(),
+        getApplications(),
+      ]);
+      setPrograms(programsResponse.data);
+      setApplications(applicationsResponse.data || []);
     } catch (requestError) {
       setError(requestError.response?.data?.message || 'Unable to load available assistance programs.');
     } finally {
@@ -61,7 +68,7 @@ export default function Programs() {
         {error && <div className="mt-5 flex flex-col items-start gap-3 rounded-xl border border-red-200 bg-red-50 p-4"><p className="text-sm text-red-700" role="alert">{error}</p><button onClick={loadPrograms} className="min-h-10 rounded-lg bg-red-100 px-4 text-sm font-bold text-red-800 disabled:opacity-50" disabled={loading}>Retry</button></div>}
         {!loading && !error && filteredPrograms.length === 0 && <p className="mt-5 rounded-xl border border-gray-200 bg-white p-4 text-sm text-gray-600">No active programs match your search.</p>}
         <div className="mt-5 space-y-4">
-          {!loading && !error && filteredPrograms.map((program) => <ProgramCard key={program._id} program={program} />)}
+          {!loading && !error && filteredPrograms.map((program) => <ProgramCard key={program._id} program={program} application={latestApplicationForProgram(applications, program._id)} />)}
         </div>
       </div>
       <StudentBottomNav />
