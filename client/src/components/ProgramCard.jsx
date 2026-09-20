@@ -89,10 +89,10 @@ export default function ProgramCard({ program, application }) {
         </p>
       )}
       {active && (
-        <div className="mt-4 rounded-xl border border-gray-200 bg-gray-50 p-4" role="status">
-          <p className="text-sm font-semibold text-black">You already have an active application for this program.</p>
-          <p className="mt-1 text-sm leading-5 text-gray-700">You can apply again only if this application is denied.</p>
-          <Link className="mt-3 inline-flex min-h-11 items-center text-sm font-semibold text-black underline underline-offset-4" to={`/applications/${application._id}`}>View my application</Link>
+        <div className="mt-4 rounded-xl border border-blue-200 bg-blue-50 p-4" role="status">
+          <p className="text-sm font-semibold text-blue-900">You already have an active application for this program.</p>
+          <p className="mt-1 text-sm leading-5 text-blue-800">You can apply again only if this application is denied.</p>
+          <Link className="mt-3 inline-flex min-h-11 items-center text-sm font-semibold text-blue-900 underline underline-offset-4" to={`/applications/${application._id}`}>View my application</Link>
         </div>
       )}
       {!active && verified && application?.status === 'denied' && (

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import StudentBottomNav from '../../components/StudentBottomNav';
+import FilterDropdown from '../../components/FilterDropdown';
 import { StatusBadge } from '../../components/ApplicationStatus';
 import { useAuth } from '../../context/AuthContext';
 import { createApplication, getApplications } from '../../services/applicationService';
@@ -294,13 +295,21 @@ export default function Apply() {
               </div>
               {availableDocTypes.length > 0 && (
                 <div className="mt-6 rounded-xl border border-gray-200 bg-gray-50 p-4">
-                  <label className="block text-sm font-semibold text-gray-900">
-                    Add another document type
-                    <select className="mt-2 block min-h-11 w-full rounded-lg border border-gray-300 bg-white px-3" value="" onChange={(event) => addDocumentType(event.target.value)} disabled={uploading}>
-                      <option value="" disabled>Select a document type...</option>
-                      {availableDocTypes.map(([value, label]) => <option value={value} key={value}>{label}</option>)}
-                    </select>
-                  </label>
+                  <p className="text-sm font-semibold text-gray-900" id="add-document-type-heading">Add another document type</p>
+                  {/* The trigger keeps showing the placeholder because picking a type adds a file
+                      slot and leaves nothing selected, exactly as the native select behaved. */}
+                  <div className="mt-2">
+                    <FilterDropdown
+                      disabled={uploading}
+                      label="Document type"
+                      onChange={addDocumentType}
+                      options={[
+                        { value: '', label: 'Select a document type...' },
+                        ...availableDocTypes.map(([value, label]) => ({ value, label })),
+                      ]}
+                      value=""
+                    />
+                  </div>
                 </div>
               )}
               {uploading && <div className="mt-6" role="status"><p className="text-sm font-semibold">Uploading… {progress}%</p><progress className="mt-2 h-2 w-full accent-black" max="100" value={progress}> {progress}% </progress></div>}

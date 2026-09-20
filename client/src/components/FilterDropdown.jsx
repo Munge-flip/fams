@@ -12,7 +12,7 @@ const triggerIdle = 'border-gray-300 bg-white text-gray-700 hover:border-gray-40
 const triggerSelected = 'border-blue-600 bg-blue-600 text-white';
 const triggerLabel = 'truncate text-xs font-semibold';
 
-export default function FilterDropdown({ label, value, options, onChange }) {
+export default function FilterDropdown({ disabled = false, label, value, options, onChange }) {
   const [open, setOpen] = useState(false);
   const [activeIndex, setActiveIndex] = useState(0);
   const wrapperRef = useRef(null);
@@ -93,7 +93,8 @@ export default function FilterDropdown({ label, value, options, onChange }) {
         aria-expanded={open}
         aria-haspopup="listbox"
         aria-label={`${label}: ${selectedLabel}`}
-        className={`${triggerBase} ${value ? triggerSelected : triggerIdle}`}
+        className={`${triggerBase} ${value ? triggerSelected : triggerIdle} ${disabled ? 'cursor-not-allowed opacity-60' : ''}`}
+        disabled={disabled}
         onClick={() => setOpen((current) => !current)}
         onKeyDown={handleKeyDown}
         ref={triggerRef}
@@ -106,7 +107,7 @@ export default function FilterDropdown({ label, value, options, onChange }) {
         </svg>
       </button>
 
-      {open && (
+      {open && !disabled && (
         <ul
           aria-label={label}
           className="absolute left-0 top-full z-30 mt-1 max-h-64 w-max min-w-full max-w-[calc(100vw-2.5rem)] overflow-y-auto rounded-xl border border-gray-200 bg-white py-1 shadow-lg"

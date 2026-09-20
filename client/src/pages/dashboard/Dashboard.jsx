@@ -8,6 +8,7 @@ import { getPrograms } from '../../services/programService';
 import { getApplications } from '../../services/applicationService';
 import { latestApplicationForProgram, releasedProgramIds } from '../../utils/applications';
 import { assistanceValueText } from '../../utils/assistance';
+import { cardAccent } from '../../utils/accents';
 import { applyProgramFilters, emptyFilters, filterOptions, hasActiveFilters } from '../../utils/programFilters';
 
 const shortDeadline = (deadline) => new Intl.DateTimeFormat('en-PH', {
@@ -116,7 +117,7 @@ export default function Dashboard() {
         <section className="mt-8" aria-labelledby="deadline-heading">
           <div className="flex items-center justify-between gap-3">
             <h2 id="deadline-heading" className="text-lg font-bold text-black">Deadline calendar</h2>
-            <Link className="min-h-11 rounded-lg px-3 py-2 text-sm font-semibold text-black underline underline-offset-4" to="/programs">Browse all</Link>
+            <Link className={`min-h-11 rounded-lg px-3 py-2 text-sm font-semibold underline underline-offset-4 ${cardAccent.text}`} to="/programs">Browse all</Link>
           </div>
           {loading && <p className="mt-4 rounded-xl border border-gray-200 bg-white p-4 text-sm text-gray-600" role="status">Loading program deadlines…</p>}
           {error && <div className="mt-4 flex flex-col items-start gap-3 rounded-xl border border-red-200 bg-red-50 p-4"><p className="text-sm text-red-700" role="alert">{error}</p><button onClick={loadData} className="min-h-10 rounded-lg bg-red-100 px-4 text-sm font-bold text-red-800 disabled:opacity-50" disabled={loading}>Retry</button></div>}
