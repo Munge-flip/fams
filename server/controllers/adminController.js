@@ -72,8 +72,11 @@ const listProgramBeneficiaries = asyncHandler(async (req, res) => {
 
   // Accepted beneficiaries hold a slot, so the list uses the same status set as the
   // slot count: released beneficiaries stay listed after their assistance is released.
+  // Most recent approval first. `updatedAt` is the closest reliable field: it is stamped
+  // by every status change because the model has no dedicated `approvedAt` (release and
+  // undo refresh it too), and rows never status-changed fall back to submission order.
   const beneficiaries = await Application.find({ program: program._id, status: { $in: slotOccupyingStatuses } })
-    .sort({ submittedAt: 1 })
+    .sort({ updatedAt: -1, submittedAt: -1 })
     .populate('applicant', 'name email studentID barangay contactNo');
 
   return res.status(200).json({ success: true, data: { program, beneficiaries } });

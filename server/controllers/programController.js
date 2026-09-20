@@ -204,7 +204,7 @@ const approvedCountsFor = async (programIds) => {
 };
 
 const listPrograms = asyncHandler(async (req, res) => {
-  const programs = await AidProgram.find({ status: 'active' });
+  const programs = await AidProgram.find({ status: 'active' }).sort({ createdAt: -1 });
   const counts = programs.length ? await approvedCountsFor(programs.map((program) => program._id)) : new Map();
   const data = programs.map((program) => ({ ...program.toObject(), approvedCount: counts.get(String(program._id)) || 0 }));
   return res.status(200).json({ success: true, data });

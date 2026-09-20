@@ -112,7 +112,7 @@ export default function AdminProgramBeneficiaries() {
       <section className="mt-6 overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm" aria-labelledby="beneficiary-list-heading">
         <div className="border-b border-gray-200 px-5 py-4 sm:px-6">
           <h2 className="text-lg font-bold text-black" id="beneficiary-list-heading">Accepted beneficiaries</h2>
-          <p className="mt-1 text-sm text-gray-600">{acceptedCount} waiting for release, {releasedCount} already released. {slotLimit === null ? `${occupiedCount} slots occupied` : `${occupiedCount} of ${slotLimit} slots occupied`}. List is ordered by application date.</p>
+          <p className="mt-1 text-sm text-gray-600">{acceptedCount} waiting for release, {releasedCount} already released. {slotLimit === null ? `${occupiedCount} slots occupied` : `${occupiedCount} of ${slotLimit} slots occupied`}. Ordered by most recent approval or release.</p>
         </div>
 
         {beneficiaries.length === 0 ? (

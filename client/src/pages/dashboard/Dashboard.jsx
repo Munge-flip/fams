@@ -15,6 +15,13 @@ const formatDeadline = (deadline) => new Intl.DateTimeFormat('en-PH', {
 
 const byDeadline = (first, second) => new Date(first.deadline) - new Date(second.deadline);
 
+const creationTime = (program) => {
+  const time = program?.createdAt ? new Date(program.createdAt).getTime() : 0;
+  return Number.isNaN(time) ? 0 : time;
+};
+
+const byCreation = (first, second) => creationTime(second) - creationTime(first);
+
 export default function Dashboard() {
   const { user } = useAuth();
   const [programs, setPrograms] = useState([]);
@@ -45,14 +52,16 @@ export default function Dashboard() {
   }, []);
 
 
+  // Deadline calendar stays deadline-ordered; the discovery feed shows the newest programs first.
   const upcomingPrograms = useMemo(() => [...programs].sort(byDeadline), [programs]);
+  const newestPrograms = useMemo(() => [...programs].sort(byCreation), [programs]);
   const discoveryPrograms = useMemo(() => {
     const term = search.trim().toLowerCase();
-    if (!term) return upcomingPrograms.slice(0, 3);
+    if (!term) return newestPrograms.slice(0, 3);
 
-    return upcomingPrograms.filter((program) => [program.title, program.description, program.eligibility, program.category]
+    return newestPrograms.filter((program) => [program.title, program.description, program.eligibility, program.category]
       .some((value) => value?.toLowerCase().includes(term)));
-  }, [search, upcomingPrograms]);
+  }, [search, newestPrograms]);
 
   return (
     <main className="min-h-screen bg-gray-50 pb-24">
