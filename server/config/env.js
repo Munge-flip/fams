@@ -10,6 +10,12 @@ const validateEnvironment = () => {
   if (process.env.JWT_SECRET === 'replace_with_a_long_random_secret') {
     throw new Error('JWT_SECRET must be replaced with a real secret before starting the server.');
   }
+
+  const sameSite = process.env.COOKIE_SAME_SITE;
+
+  if (sameSite && !['lax', 'strict', 'none'].includes(sameSite.toLowerCase())) {
+    throw new Error('COOKIE_SAME_SITE must be lax, strict or none.');
+  }
 };
 
 module.exports = validateEnvironment;

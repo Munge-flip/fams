@@ -6,12 +6,15 @@
   "scripts": {
     "start": "node index.js",
     "dev": "node --watch index.js",
-    "check": "node --check index.js && node --check app.js && node --check config/cloudinary.js && node --check config/db.js && node --check config/env.js && node --check controllers/applicationController.js && node --check controllers/authController.js && node --check controllers/documentController.js && node --check controllers/programController.js && node --check middleware/auth.js && node --check middleware/errorHandler.js && node --check middleware/upload.js && node --check models/AidProgram.js && node --check models/Application.js && node --check models/Document.js && node --check models/User.js && node --check routes/applicationRoutes.js && node --check routes/authRoutes.js && node --check routes/documentRoutes.js && node --check routes/programRoutes.js && node --check utils/asyncHandler.js && node --check utils/token.js && node --check utils/validation.js"
+    "check": "node --check index.js && node --check app.js && node --check config/cloudinary.js && node --check config/db.js && node --check config/env.js && node --check controllers/applicationController.js && node --check controllers/authController.js && node --check controllers/documentController.js && node --check controllers/programController.js && node --check middleware/auth.js && node --check middleware/errorHandler.js && node --check middleware/upload.js && node --check middleware/rateLimit.js && node --check models/AidProgram.js && node --check models/Application.js && node --check models/Document.js && node --check models/User.js && node --check routes/applicationRoutes.js && node --check routes/authRoutes.js && node --check routes/documentRoutes.js && node --check routes/programRoutes.js && node --check utils/asyncHandler.js && node --check utils/token.js && node --check utils/validation.js"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "type": "commonjs",
+  "engines": {
+    "node": ">=20.19.0"
+  },
   "dependencies": {
     "bcryptjs": "^3.0.3",
     "cloudinary": "^2.10.0",
@@ -19,6 +22,8 @@
     "cors": "^2.8.6",
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
+    "express-rate-limit": "^8.7.0",
+    "helmet": "^8.3.0",
     "jsonwebtoken": "^9.0.3",
     "mongoose": "^9.9.2",
     "multer": "^2.2.0",

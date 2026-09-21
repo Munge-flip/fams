@@ -14,6 +14,9 @@ coverage/
 .cache/
 *.tsbuildinfo
 
+# Throwaway local harnesses and scratch scripts (ad-hoc debug runs; never published)
+tmp-*.cjs
+
 # Logs
 *.log
 npm-debug.log*
