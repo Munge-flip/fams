@@ -1,3 +1,5 @@
+const dns = require('dns');
+const net = require('net');
 const nodemailer = require('nodemailer');
 
 // Outbound email for FAMS. Configured entirely through the environment so no credentials
@@ -19,29 +21,47 @@ const fromAddress = () => {
   return `"${name}" <${process.env.MAIL_FROM}>`;
 };
 
-let transporter;
+let transporterPromise;
+
+const createTransporter = async () => {
+  const port = Number(process.env.SMTP_PORT || 587);
+  const host = process.env.SMTP_HOST;
+
+  // Nodemailer 10 resolves A and AAAA records itself and picks from the combined list,
+  // which bypasses dns.setDefaultResultOrder(). Render cannot route outbound IPv6, so
+  // resolve the SMTP host to IPv4 here and keep the hostname for TLS SNI and certificate
+  // validation. Otherwise a connection can land on an unroutable IPv6 address.
+  const address = net.isIP(host) ? host : (await dns.promises.lookup(host, { family: 4 })).address;
+
+  return nodemailer.createTransport({
+    host: address,
+    servername: net.isIP(host) ? undefined : host,
+    port,
+    // Port 465 is implicit TLS; anything else negotiates STARTTLS.
+    secure: process.env.SMTP_SECURE ? process.env.SMTP_SECURE === 'true' : port === 465,
+    auth: process.env.SMTP_USER ? { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS } : undefined,
+  });
+};
 
 const getTransporter = () => {
   if (!isEmailConfigured()) {
     throw new MailNotConfiguredError();
   }
 
-  if (!transporter) {
-    const port = Number(process.env.SMTP_PORT || 587);
-    transporter = nodemailer.createTransport({
-      host: process.env.SMTP_HOST,
-      port,
-      // Port 465 is implicit TLS; anything else negotiates STARTTLS.
-      secure: process.env.SMTP_SECURE ? process.env.SMTP_SECURE === 'true' : port === 465,
-      auth: process.env.SMTP_USER ? { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS } : undefined,
+  if (!transporterPromise) {
+    transporterPromise = createTransporter().catch((error) => {
+      // Let the next send retry resolution instead of caching the failure forever.
+      transporterPromise = null;
+      throw error;
     });
   }
 
-  return transporter;
+  return transporterPromise;
 };
 
 const sendMail = async ({ to, subject, text, html }) => {
-  const info = await getTransporter().sendMail({
+  const transporter = await getTransporter();
+  const info = await transporter.sendMail({
     from: fromAddress(),
     to,
     subject,

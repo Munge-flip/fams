@@ -1,3 +1,11 @@
+const dns = require('dns');
+
+// Render's network cannot route outbound IPv6, so prefer IPv4 DNS results for the whole
+// process. Without this, Gmail's SMTP host resolves to IPv6 first and sends hang for
+// minutes before failing with ENETUNREACH. This changes only preference order, not
+// availability; MongoDB Atlas and Cloudinary keep working over whichever family resolves.
+dns.setDefaultResultOrder('ipv4first');
+
 const path = require('path');
 require('dotenv').config({ path: path.resolve(__dirname, '../.env') });
 
