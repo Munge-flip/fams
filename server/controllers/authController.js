@@ -1,11 +1,8 @@
 const bcrypt = require('bcryptjs');
-const crypto = require('crypto');
-const EmailVerification = require('../models/EmailVerification');
 const User = require('../models/User');
 const { clearedCookieOptions, cookieOptions } = require('../config/cookie');
 const asyncHandler = require('../utils/asyncHandler');
 const { createToken } = require('../utils/token');
-const { sendVerificationCode } = require('../utils/email');
 const { validateEmailDomain, validateEmailFormat } = require('../utils/validation');
 
 const allowedFields = [
@@ -326,17 +323,10 @@ const submitVerificationProfile = asyncHandler(async (req, res) => {
   res.status(200).json({ success: true, data: toSafeUser(user) });
 });
 
-// Email changes are confirmed with a short-lived code sent to the NEW address, so a
-// mistyped or hijacked session cannot move the account somewhere the owner cannot reach.
-// A password change runs on the same machinery as a second factor: the code goes to the
-// account's own address and the replacement password waits, hashed, until it comes back.
-// The same flow serves admins and beneficiaries, and both the primary and recovery email.
-const EMAIL_CODE_TTL_MINUTES = 15;
-const EMAIL_CODE_RESEND_SECONDS = 60;
-const EMAIL_CODE_MAX_ATTEMPTS = 5;
-
-const generateVerificationCode = () => String(crypto.randomInt(0, 1000000)).padStart(6, '0');
-
+// Credential changes are confirmed with the current password only. They apply immediately:
+// the deployed mail sandbox cannot deliver codes to arbitrary recipients, so a code step
+// would strand every account that does not own the sender address.
+//
 // Shared body handling for anything that changes credentials.
 const readRequestBody = (req, res, allowedFields) => {
   const body = req.body;
@@ -385,9 +375,8 @@ const authorizeEmailChange = async (req, res) => {
   const user = await authorizePassword(req, res, ['email', 'currentPassword']);
   if (!user) return null;
 
-  // The code for a change is sent to the new address, so the domain has to be able to
-  // receive mail. Checked before the code is generated and before any send is attempted,
-  // and only after the password proves this is the account owner.
+  // The new address has to be able to receive mail, so the domain is checked before the
+  // change is applied, and only after the password proves this is the account owner.
   const domainError = await validateEmailDomain(body.email);
   if (domainError) {
     res.status(400).json({ success: false, message: domainError });
@@ -397,101 +386,9 @@ const authorizeEmailChange = async (req, res) => {
   return user;
 };
 
-// Issues the code for a pending change. Returns a result instead of writing the response so
-// callers (email change, recovery email, password change) can shape their own payload with
-// the same expiry, cooldown and delivery rules. `extraFields` carries whatever that change
-// needs parked alongside the code.
-const sendVerificationCodeFor = async ({ user, target, email, extraFields = {} }) => {
-  const pending = await EmailVerification.findOne({ user: user._id });
-  // A failed delivery never costs the user a wait: there is no code in their inbox to sit out.
-  if (pending && !pending.deliveryFailed) {
-    const waitedSeconds = (Date.now() - new Date(pending.sentAt).getTime()) / 1000;
-    if (waitedSeconds < EMAIL_CODE_RESEND_SECONDS) {
-      const waitFor = Math.ceil(EMAIL_CODE_RESEND_SECONDS - waitedSeconds);
-      return {
-        ok: false,
-        status: 429,
-        message: `Please wait ${waitFor} seconds before requesting another code.`,
-        resendAfterSeconds: waitFor,
-      };
-    }
-  }
-
-  const code = generateVerificationCode();
-  const sentAt = new Date();
-  const expiresAt = new Date(sentAt.getTime() + EMAIL_CODE_TTL_MINUTES * 60 * 1000);
-
-  // One pending code per account: replacing the record invalidates any code sent before, and
-  // because a code belongs to exactly one change, anything a previous change parked (today
-  // only a hashed replacement password) is cleared unless this code parks its own.
-  await EmailVerification.findOneAndUpdate(
-    { user: user._id },
-    {
-      user: user._id,
-      target,
-      pendingEmail: email,
-      pendingPasswordHash: extraFields.pendingPasswordHash ?? null,
-      codeHash: await bcrypt.hash(code, 12),
-      expiresAt,
-      sentAt,
-      attempts: 0,
-      deliveryFailed: false,
-    },
-    { upsert: true, returnDocument: 'after', setDefaultsOnInsert: true },
-  );
-
-  try {
-    await sendVerificationCode({ to: email, code, expiresInMinutes: EMAIL_CODE_TTL_MINUTES });
-  } catch (error) {
-    console.error(`Unable to send the verification code: ${error.message}`);
-
-    // Keep the attempt on record so the verification screen can say the send failed instead of
-    // looking like nothing ever happened. The expiry is pulled back to the send time, so the
-    // code that never arrived cannot be confirmed by anyone.
-    await EmailVerification.updateOne(
-      { user: user._id },
-      { $set: { sentAt, expiresAt: sentAt, attempts: 0, deliveryFailed: true } },
-    );
-
-    return {
-      ok: false,
-      status: 503,
-      message: 'We could not send the verification code right now. Please try again in a moment.',
-    };
-  }
-
-  return {
-    ok: true,
-    email,
-    target,
-    expiresInMinutes: EMAIL_CODE_TTL_MINUTES,
-    resendAfterSeconds: EMAIL_CODE_RESEND_SECONDS,
-  };
-};
-
-// Shared by every flow that parks a change behind a code: the primary email, the recovery
-// email, and the password.
-const issueVerificationCode = async (req, res, { user, target, email, extraFields }) => {
-  const issued = await sendVerificationCodeFor({ user, target, email, extraFields });
-
-  if (!issued.ok) {
-    const data = issued.resendAfterSeconds ? { resendAfterSeconds: issued.resendAfterSeconds } : undefined;
-    return res.status(issued.status).json({ success: false, message: issued.message, data });
-  }
-
-  return res.status(200).json({
-    success: true,
-    data: {
-      message: `We sent a 6-digit code to ${issued.email}. Enter it below to finish the change.`,
-      email: issued.email,
-      target: issued.target,
-      expiresInMinutes: issued.expiresInMinutes,
-      resendAfterSeconds: issued.resendAfterSeconds,
-    },
-  });
-};
-
-const requestEmailChange = asyncHandler(async (req, res) => {
+// Applying a new primary address needs only the current password. Format and MX are still
+// checked, but no code is sent and nothing is parked: the change lands on this request.
+const changeEmail = asyncHandler(async (req, res) => {
   const user = await authorizeEmailChange(req, res);
   if (!user) return undefined;
 
@@ -505,11 +402,17 @@ const requestEmailChange = asyncHandler(async (req, res) => {
     return res.status(409).json({ success: false, message: 'That email address is already used by another account.' });
   }
 
-  return issueVerificationCode(req, res, { user, target: 'email', email });
+  user.email = email;
+  await user.save();
+
+  return res.status(200).json({
+    success: true,
+    data: { message: 'Your email address has been updated.', user: toSafeUser(user) },
+  });
 });
 
-// A first recovery email is simply recorded (there is nothing to protect yet); changing an
-// existing one goes through the same code flow so the new address is proven reachable.
+// Adding or replacing a recovery email uses the same current-password confirmation; neither
+// variant sends a code.
 const setRecoveryEmail = asyncHandler(async (req, res) => {
   const user = await authorizeEmailChange(req, res);
   if (!user) return undefined;
@@ -522,13 +425,14 @@ const setRecoveryEmail = asyncHandler(async (req, res) => {
     return res.status(400).json({ success: false, message: 'That is already your recovery email address.' });
   }
 
-  if (!user.recoveryEmail) {
-    user.recoveryEmail = email;
-    await user.save();
-    return res.status(200).json({ success: true, data: { message: 'Recovery email added.', recoveryEmail: email, user: toSafeUser(user) } });
-  }
+  const message = user.recoveryEmail ? 'Recovery email updated.' : 'Recovery email added.';
+  user.recoveryEmail = email;
+  await user.save();
 
-  return issueVerificationCode(req, res, { user, target: 'recoveryEmail', email });
+  return res.status(200).json({
+    success: true,
+    data: { message, recoveryEmail: email, user: toSafeUser(user) },
+  });
 });
 
 // Clearing the recovery email protects nothing, so it only needs the current password.
@@ -540,97 +444,6 @@ const removeRecoveryEmail = asyncHandler(async (req, res) => {
   await user.save();
 
   return res.status(200).json({ success: true, data: { message: 'Recovery email removed.', user: toSafeUser(user) } });
-});
-
-// Applies whichever pending code the account holds: a new primary address, a new recovery
-// address, or a new password.
-const confirmVerificationCode = asyncHandler(async (req, res) => {
-  const body = readRequestBody(req, res, ['code']);
-  if (!body) return undefined;
-
-  const code = typeof body.code === 'string' ? body.code.trim() : '';
-  if (!/^\d{6}$/.test(code)) {
-    return res.status(400).json({ success: false, message: 'Enter the 6-digit code from the email.' });
-  }
-
-  const user = await User.findById(req.user._id);
-  const pending = await EmailVerification.findOne({ user: user._id });
-  if (!pending) {
-    return res.status(400).json({ success: false, message: 'There is no email change waiting. Start again with the new address.' });
-  }
-
-  // A failed send leaves a deliberately dead record: there is no code to check, and the
-  // record stays so the change form can explain what happened.
-  if (pending.deliveryFailed) {
-    return res.status(400).json({
-      success: false,
-      message: `We could not send a code to ${pending.pendingEmail}. Send a new code to try again.`,
-    });
-  }
-
-  if (new Date(pending.expiresAt).getTime() < Date.now()) {
-    await EmailVerification.deleteOne({ _id: pending._id });
-    return res.status(400).json({ success: false, message: 'That code has expired. Request a new one to continue.' });
-  }
-
-  if (pending.attempts >= EMAIL_CODE_MAX_ATTEMPTS) {
-    await EmailVerification.deleteOne({ _id: pending._id });
-    return res.status(429).json({ success: false, message: 'Too many incorrect codes. Request a new one to continue.' });
-  }
-
-  if (!(await bcrypt.compare(code, pending.codeHash))) {
-    pending.attempts += 1;
-    await pending.save();
-    return res.status(400).json({ success: false, message: 'That code is not correct. Check the email and try again.' });
-  }
-
-  if (pending.target === 'password') {
-    // Nothing is parked without a hash, so a record that lost it (or never had one) is dead:
-    // drop it and make the user start over rather than leaving a code that does nothing.
-    if (!pending.pendingPasswordHash) {
-      await EmailVerification.deleteOne({ _id: pending._id });
-      return res.status(400).json({ success: false, message: 'There is no password change waiting. Start again with your new password.' });
-    }
-
-    // The parked hash was computed when the code was issued, so it is applied as-is.
-    user.password = pending.pendingPasswordHash;
-    await user.save();
-    await EmailVerification.deleteOne({ _id: pending._id });
-
-    return res.status(200).json({ success: true, data: { message: 'Your password has been updated.', user: toSafeUser(user) } });
-  }
-
-  if (pending.target === 'recoveryEmail') {
-    if (pending.pendingEmail === user.email) {
-      await EmailVerification.deleteOne({ _id: pending._id });
-      return res.status(400).json({ success: false, message: 'Your recovery email must be different from your primary email address.' });
-    }
-
-    user.recoveryEmail = pending.pendingEmail;
-    await user.save();
-    await EmailVerification.deleteOne({ _id: pending._id });
-
-    return res.status(200).json({ success: true, data: { message: 'Your recovery email has been updated.', user: toSafeUser(user) } });
-  }
-
-  // Only a primary-email change is left. A record left behind by the retired registration
-  // flow is dead weight, so drop it instead of applying it to the account.
-  if (pending.target !== 'email') {
-    await EmailVerification.deleteOne({ _id: pending._id });
-    return res.status(400).json({ success: false, message: 'There is no email change waiting. Start again with the new address.' });
-  }
-
-  const taken = await User.findOne({ email: pending.pendingEmail, _id: { $ne: user._id } });
-  if (taken) {
-    await EmailVerification.deleteOne({ _id: pending._id });
-    return res.status(409).json({ success: false, message: 'That email address is already used by another account.' });
-  }
-
-  user.email = pending.pendingEmail;
-  await user.save();
-  await EmailVerification.deleteOne({ _id: pending._id });
-
-  return res.status(200).json({ success: true, data: { message: 'Your email address has been updated.', user: toSafeUser(user) } });
 });
 
 const changePassword = asyncHandler(async (req, res) => {
@@ -652,29 +465,23 @@ const changePassword = asyncHandler(async (req, res) => {
     return res.status(400).json({ success: false, message: passwordError });
   }
 
-  // The replacement is parked hashed and only applied when the code sent to the account's own
-  // address comes back, so the current password keeps working until then. The code goes to the
-  // primary email because a password change has no new address to prove control of — this
-  // step is a second factor, not an ownership check.
-  const pendingPasswordHash = await bcrypt.hash(newPassword, 12);
+  user.password = await bcrypt.hash(newPassword, 12);
+  await user.save();
 
-  return issueVerificationCode(req, res, {
-    user,
-    target: 'password',
-    email: user.email,
-    extraFields: { pendingPasswordHash },
+  return res.status(200).json({
+    success: true,
+    data: { message: 'Your password has been updated.', user: toSafeUser(user) },
   });
 });
 
 module.exports = {
+  changeEmail,
   changePassword,
-  confirmVerificationCode,
   register,
   login,
   logout,
   me,
   removeRecoveryEmail,
-  requestEmailChange,
   setRecoveryEmail,
   updateProfile,
   submitVerificationProfile,

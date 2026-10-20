@@ -10,8 +10,7 @@ const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 const requestError = (error, fallback) => error.response?.data?.message || fallback;
 
-// A first recovery email only needs the current password; replacing one reuses the
-// verification flow so the new address is proven reachable.
+// Adding and replacing a recovery email both need only the current password.
 export default function RecoveryEmailForm({ recoveryEmail, onChanged }) {
   const [mode, setMode] = useState('idle');
   const [email, setEmail] = useState('');
@@ -85,18 +84,16 @@ export default function RecoveryEmailForm({ recoveryEmail, onChanged }) {
     return (
       <div className="mt-4">
         <EmailChangeForm
-          currentEmail={recoveryEmail}
           idPrefix="recovery-change"
           labels={{
             newEmail: 'New recovery email address',
-            sendCode: 'Send verification code',
-            confirm: 'Confirm new recovery email',
+            submit: 'Save new recovery email',
           }}
           onChanged={async () => {
             setMode('idle');
             await reload();
           }}
-          requestChange={setRecoveryEmail}
+          submitChange={setRecoveryEmail}
         />
         <button className={`${secondaryButtonClass} mt-4`} disabled={busy} onClick={() => setMode('idle')} type="button">Cancel</button>
       </div>
@@ -170,7 +167,7 @@ export default function RecoveryEmailForm({ recoveryEmail, onChanged }) {
           <div className="flex items-end">
             <button className={buttonClass} disabled={busy} type="submit">{busy ? 'Saving…' : 'Add recovery email'}</button>
           </div>
-          <p className="text-sm text-gray-600 sm:col-span-2">No code is needed the first time. Changing it later verifies the new address.</p>
+          <p className="text-sm text-gray-600 sm:col-span-2">Adding or changing it needs your current password.</p>
         </form>
       )}
     </div>

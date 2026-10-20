@@ -33,9 +33,9 @@ export default function Settings({ withBottomNav = false }) {
         <h2 className={headingClass} id="settings-email-heading">Primary email</h2>
         <p className={sectionCopyClass}>
           Signed in as <span className="font-semibold text-gray-800">{user?.email || 'Email not available'}</span>. Changing it
-          requires your current password and a 6-digit code sent to the new address.
+          requires your current password.
         </p>
-        <EmailChangeForm currentEmail={user?.email} onChanged={refreshUser} />
+        <EmailChangeForm onChanged={refreshUser} />
       </section>
 
       <section aria-labelledby="settings-recovery-heading" className={`mt-6 ${sectionClass}`}>
@@ -48,7 +48,7 @@ export default function Settings({ withBottomNav = false }) {
 
       <section aria-labelledby="settings-password-heading" className={`mt-6 ${sectionClass}`}>
         <h2 className={headingClass} id="settings-password-heading">Password</h2>
-        <p className={sectionCopyClass}>Choose a new password, then confirm the 6-digit code we send to your primary email. You stay signed in on this device after saving.</p>
+        <p className={sectionCopyClass}>Choose a new password and confirm it with your current password. You stay signed in on this device after saving.</p>
         <PasswordChangeForm />
       </section>
     </>

@@ -40,14 +40,8 @@ export const removeRecoveryEmail = async (data) => {
   return response.data;
 };
 
-export const requestEmailChange = async (data) => {
-  const response = await api.post('/auth/email-change/request', data);
-  return response.data;
-};
-
-// Confirms any pending code: a new primary address, a new recovery address, or a new password.
-export const confirmVerificationCode = async (data) => {
-  const response = await api.post('/auth/verification/confirm', data);
+export const changeEmail = async (data) => {
+  const response = await api.patch('/auth/email', data);
   return response.data;
 };
 

@@ -1,17 +1,10 @@
 const { ipKeyGenerator, rateLimit } = require('express-rate-limit');
 const User = require('../models/User');
 
-// Limits for the account endpoints, as a second layer on top of the per-account rules already
-// inside authController (one code per 60 seconds, five wrong codes per record, fifteen-minute
-// expiry).
-//
-// Two keys, because the two groups of endpoints defend against different things:
-//   * Sign-in is keyed on the account being attacked, so ten bad guesses against one account do
-//     not lock out everyone else behind the same school network, barangay office or shared
-//     terminal.
-//   * Registration and the verification-code endpoints are keyed on the connection, because what
-//     they stop is one source mass-creating accounts or burning through sends — no individual
-//     account can be harmed by somebody else's attempts there.
+// Limits for the account endpoints. Sign-in is keyed on the account being attacked, so ten bad
+// guesses against one account do not lock out everyone else behind the same school network,
+// barangay office or shared terminal. Registration is keyed on the connection, because what it
+// stops is one source mass-creating accounts.
 //
 // Read-only browsing is deliberately unthrottled, so the limiters are attached to individual
 // auth routes instead of the whole application.
@@ -92,26 +85,7 @@ const registerLimiter = createLimiter({
   message: 'Too many registration attempts. Please try again later.',
 });
 
-// Every endpoint that mails a 6-digit code shares one counter, so cycling through email change,
-// recovery email and password change cannot buy extra sends. Ten an hour leaves room for the
-// resends a mistyped address legitimately needs.
-const verificationCodeRequestLimiter = createLimiter({
-  windowMs: ONE_HOUR,
-  limit: 10,
-  message: 'Too many verification code requests. Please try again later.',
-});
-
-// Backstop for guessing a code across many accounts; the five-attempt cap per pending record
-// still applies on top of this.
-const verificationConfirmLimiter = createLimiter({
-  windowMs: ONE_HOUR,
-  limit: 20,
-  message: 'Too many code attempts. Please try again later.',
-});
-
 module.exports = {
   loginLimiter,
   registerLimiter,
-  verificationCodeRequestLimiter,
-  verificationConfirmLimiter,
 };

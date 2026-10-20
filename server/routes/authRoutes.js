@@ -1,12 +1,10 @@
 const express = require('express');
 const {
   register, login, logout, me, updateProfile, submitVerificationProfile,
-  requestEmailChange, confirmVerificationCode, setRecoveryEmail, removeRecoveryEmail, changePassword,
+  changeEmail, setRecoveryEmail, removeRecoveryEmail, changePassword,
 } = require('../controllers/authController');
 const { protect } = require('../middleware/auth');
-const {
-  loginLimiter, registerLimiter, verificationCodeRequestLimiter, verificationConfirmLimiter,
-} = require('../middleware/rateLimit');
+const { loginLimiter, registerLimiter } = require('../middleware/rateLimit');
 
 const router = express.Router();
 
@@ -21,14 +19,11 @@ router.get('/me', protect, me);
 router.patch('/profile', protect, updateProfile);
 // The beneficiary profile is open to every signed-in account.
 router.patch('/verification-profile', protect, submitVerificationProfile);
-// Account & security: shared by every role (see client Settings page). Everything below that
-// mails a 6-digit code draws on one shared hourly allowance per address.
-router.patch('/password', verificationCodeRequestLimiter, protect, changePassword);
-router.put('/recovery-email', verificationCodeRequestLimiter, protect, setRecoveryEmail);
+// Account & security: shared by every role (see client Settings page). Each change is applied
+// on the same request after the current password is verified.
+router.patch('/email', protect, changeEmail);
+router.patch('/password', protect, changePassword);
+router.put('/recovery-email', protect, setRecoveryEmail);
 router.delete('/recovery-email', protect, removeRecoveryEmail);
-router.post('/email-change/request', verificationCodeRequestLimiter, protect, requestEmailChange);
-// Confirms a pending email, recovery-email, or password change for the signed-in account.
-router.post('/verification/confirm', verificationConfirmLimiter, protect, confirmVerificationCode);
-
 
 module.exports = router;

@@ -58,20 +58,4 @@ const sendMail = async ({ to, subject, text, html }) => {
   };
 };
 
-const sendVerificationCode = ({ to, code, expiresInMinutes }) => sendMail({
-  to,
-  subject: 'Your FAMS verification code',
-  text: [
-    `Your FAMS verification code is ${code}.`,
-    '',
-    `It expires in ${expiresInMinutes} minutes.`,
-    'If you did not request this change, you can ignore this email and your address will stay the same.',
-  ].join('\n'),
-  html: [
-    '<p>Your FAMS verification code is <strong style="font-size:20px;letter-spacing:2px">' + code + '</strong>.</p>',
-    `<p>It expires in ${expiresInMinutes} minutes.</p>`,
-    '<p>If you did not request this change, you can ignore this email and your address will stay the same.</p>',
-  ].join(''),
-});
-
-module.exports = { isEmailConfigured, sendMail, sendVerificationCode, MailNotConfiguredError };
+module.exports = { isEmailConfigured, sendMail, MailNotConfiguredError };
