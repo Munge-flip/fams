@@ -1,67 +1,44 @@
-const dns = require('dns');
-const net = require('net');
-const nodemailer = require('nodemailer');
+const { Resend } = require('resend');
 
-// Outbound email for FAMS. Configured entirely through the environment so no credentials
-// live in the code:
-//   SMTP_HOST, SMTP_PORT, SMTP_SECURE, SMTP_USER, SMTP_PASS, MAIL_FROM, MAIL_FROM_NAME
-// When SMTP is not configured, sendMail throws a MailNotConfiguredError so callers can
+// Outbound email for FAMS through Resend's HTTPS API. Render's free tier permanently blocks
+// outbound SMTP ports (25/465/587), so the API is the only delivery path that works there.
+// Configured entirely through the environment so no credentials live in the code:
+//   RESEND_API_KEY, MAIL_FROM, MAIL_FROM_NAME
+// When Resend is not configured, sendMail throws a MailNotConfiguredError so callers can
 // return a friendly message instead of pretending the message went out.
 class MailNotConfiguredError extends Error {
   constructor() {
-    super('Email sending is not configured. Set SMTP_HOST and the related SMTP variables.');
+    super('Email sending is not configured. Set RESEND_API_KEY.');
     this.name = 'MailNotConfiguredError';
   }
 }
 
-const isEmailConfigured = () => Boolean(process.env.SMTP_HOST && process.env.MAIL_FROM);
+const isEmailConfigured = () => Boolean(process.env.RESEND_API_KEY);
 
+// onboarding@resend.dev is Resend's sandbox sender and needs no verified domain. In that
+// mode Resend only delivers to the account owner's own verified address; reaching arbitrary
+// beneficiaries requires a verified domain and MAIL_FROM set to an address on it.
 const fromAddress = () => {
   const name = process.env.MAIL_FROM_NAME || 'FAMS';
-  return `"${name}" <${process.env.MAIL_FROM}>`;
+  return `${name} <${process.env.MAIL_FROM || 'onboarding@resend.dev'}>`;
 };
 
-let transporterPromise;
+let client;
 
-const createTransporter = async () => {
-  const port = Number(process.env.SMTP_PORT || 587);
-  const host = process.env.SMTP_HOST;
-
-  // Nodemailer 10 resolves A and AAAA records itself and picks from the combined list,
-  // which bypasses dns.setDefaultResultOrder(). Render cannot route outbound IPv6, so
-  // resolve the SMTP host to IPv4 here and keep the hostname for TLS SNI and certificate
-  // validation. Otherwise a connection can land on an unroutable IPv6 address.
-  const address = net.isIP(host) ? host : (await dns.promises.lookup(host, { family: 4 })).address;
-
-  return nodemailer.createTransport({
-    host: address,
-    servername: net.isIP(host) ? undefined : host,
-    port,
-    // Port 465 is implicit TLS; anything else negotiates STARTTLS.
-    secure: process.env.SMTP_SECURE ? process.env.SMTP_SECURE === 'true' : port === 465,
-    auth: process.env.SMTP_USER ? { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS } : undefined,
-  });
-};
-
-const getTransporter = () => {
+const getClient = () => {
   if (!isEmailConfigured()) {
     throw new MailNotConfiguredError();
   }
 
-  if (!transporterPromise) {
-    transporterPromise = createTransporter().catch((error) => {
-      // Let the next send retry resolution instead of caching the failure forever.
-      transporterPromise = null;
-      throw error;
-    });
+  if (!client) {
+    client = new Resend(process.env.RESEND_API_KEY);
   }
 
-  return transporterPromise;
+  return client;
 };
 
 const sendMail = async ({ to, subject, text, html }) => {
-  const transporter = await getTransporter();
-  const info = await transporter.sendMail({
+  const { data, error } = await getClient().emails.send({
     from: fromAddress(),
     to,
     subject,
@@ -69,10 +46,15 @@ const sendMail = async ({ to, subject, text, html }) => {
     html,
   });
 
-  // Message id and preview URL are useful for local development (Ethereal and friends).
+  // The SDK returns API failures instead of throwing. Raise them so callers handle a rejected
+  // send the same way as any other delivery failure, and keep the API detail server-side.
+  if (error) {
+    throw new Error(`Resend could not send the email: ${error.message || 'unknown error'}`);
+  }
+
   return {
-    messageId: info.messageId,
-    previewUrl: nodemailer.getTestMessageUrl(info) || null,
+    messageId: data.id,
+    previewUrl: null,
   };
 };
 
