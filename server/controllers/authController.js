@@ -2,9 +2,9 @@ const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
 const EmailVerification = require('../models/EmailVerification');
 const User = require('../models/User');
-const { clearedCookieOptions, cookieOptions, verificationCookieOptions } = require('../config/cookie');
+const { clearedCookieOptions, cookieOptions } = require('../config/cookie');
 const asyncHandler = require('../utils/asyncHandler');
-const { createToken, createVerificationTicket } = require('../utils/token');
+const { createToken } = require('../utils/token');
 const { sendVerificationCode } = require('../utils/email');
 const { validateEmailDomain, validateEmailFormat } = require('../utils/validation');
 
@@ -81,8 +81,8 @@ const register = asyncHandler(async (req, res) => {
     return res.status(400).json({ success: false, message: validationError });
   }
 
-  // The activation code has to reach a real inbox, so the domain is checked before the
-  // account exists and before any code is generated.
+  // Registration accepts only addresses that can actually receive mail, so the domain is
+  // checked before the account exists.
   const domainError = await validateEmailDomain(req.body.email);
   if (domainError) {
     return res.status(400).json({ success: false, message: domainError });
@@ -109,85 +109,13 @@ const register = asyncHandler(async (req, res) => {
     email,
     password,
     studentID,
-    // New beneficiaries must confirm their address before the actions that depend on it.
-    emailVerified: false,
   });
 
-  // The account cannot sign in until the address is confirmed, so registration hands over
-  // the activation ticket instead of a session. The verification screen uses it to read the
-  // pending code, resend it and confirm it; no other endpoint accepts it.
-  res.cookie('fams_verify', createVerificationTicket(user), verificationCookieOptions());
+  // Registration is complete on its own: the account is active and signs in immediately, with
+  // no email confirmation step and no dependency on mail delivery.
+  res.cookie('fams_token', createToken(user), cookieOptions());
 
-  // Registration succeeds even when the mail cannot be sent: the verify screen offers a
-  // resend, and the user never has to register again.
-  const issued = await sendVerificationCodeFor({ user, target: 'registration', email: user.email });
-
-  return res.status(201).json({
-    success: true,
-    data: {
-      user: toSafeUser(user),
-      emailVerification: issued.ok
-        ? {
-          sent: true,
-          email: issued.email,
-          expiresInMinutes: issued.expiresInMinutes,
-          resendAfterSeconds: issued.resendAfterSeconds,
-        }
-        : { sent: false, email: user.email, message: issued.message },
-    },
-  });
-});
-
-// Resends the activation code. The address is always the account the activation ticket was
-// issued to, so this can never be used to mail codes to arbitrary addresses.
-const requestEmailVerification = asyncHandler(async (req, res) => {
-  const user = req.user;
-
-  const issued = await sendVerificationCodeFor({ user, target: 'registration', email: user.email });
-
-  if (!issued.ok) {
-    const data = issued.resendAfterSeconds ? { resendAfterSeconds: issued.resendAfterSeconds } : undefined;
-    return res.status(issued.status).json({ success: false, message: issued.message, data });
-  }
-
-  return res.status(200).json({
-    success: true,
-    data: {
-      message: `We sent a new 6-digit code to ${issued.email}.`,
-      email: issued.email,
-      expiresInMinutes: issued.expiresInMinutes,
-      resendAfterSeconds: issued.resendAfterSeconds,
-    },
-  });
-});
-
-// Lets the verification screen report honestly whether a code is waiting and how long
-// until another can be requested, including after a reload or a failed send. The address is
-// echoed back so the screen can name it without trusting any client-side state.
-const getEmailVerificationStatus = asyncHandler(async (req, res) => {
-  const user = req.user;
-  const data = { email: user.email, pending: false, deliveryFailed: false, resendAfterSeconds: 0 };
-
-  const pending = await EmailVerification.findOne({ user: user._id, target: 'registration' });
-  if (!pending) {
-    return res.status(200).json({ success: true, data });
-  }
-
-  // A failed send is not a waiting code, and it never makes the user sit out the cooldown.
-  if (pending.deliveryFailed) {
-    return res.status(200).json({ success: true, data: { ...data, deliveryFailed: true } });
-  }
-
-  const waitedSeconds = (Date.now() - new Date(pending.sentAt).getTime()) / 1000;
-
-  return res.status(200).json({
-    success: true,
-    data: {
-      ...data,
-      pending: true,
-      resendAfterSeconds: Math.max(Math.ceil(EMAIL_CODE_RESEND_SECONDS - waitedSeconds), 0),
-    },
-  });
+  return res.status(201).json({ success: true, data: toSafeUser(user) });
 });
 
 const login = asyncHandler(async (req, res) => {
@@ -212,20 +140,6 @@ const login = asyncHandler(async (req, res) => {
 
   if (!user || !(await bcrypt.compare(password, user.password))) {
     return res.status(401).json({ success: false, message: 'Invalid email or student ID, or password.' });
-  }
-
-  // Beneficiaries must confirm their address before they can sign in, so an unconfirmed
-  // account is refused outright instead of being handed a session. The refusal names the
-  // reason and the address, and it hands over the activation ticket, so the client can send
-  // the user straight to the verification step rather than to a dead-end error. Admins are
-  // created without the emailVerified field and are never affected.
-  if (user.role !== 'admin' && user.emailVerified === false) {
-    res.cookie('fams_verify', createVerificationTicket(user), verificationCookieOptions());
-    return res.status(403).json({
-      success: false,
-      message: 'Please verify your email before signing in. We sent a 6-digit code to your inbox.',
-      data: { code: 'email_unverified', email: user.email },
-    });
   }
 
   const token = createToken(user);
@@ -480,15 +394,13 @@ const authorizeEmailChange = async (req, res) => {
     return null;
   }
 
-  // Activation codes and email-change codes share one pending record, but only a confirmed
-  // account can sign in, so an activation code can never be waiting for this user.
   return user;
 };
 
-// Issues the code for a pending verification, whichever change it targets. Returns a
-// result instead of writing the response so callers (registration, resend, email change,
-// password change) can shape their own payload with the same expiry, cooldown and delivery
-// rules. `extraFields` carries whatever that change needs parked alongside the code.
+// Issues the code for a pending change. Returns a result instead of writing the response so
+// callers (email change, recovery email, password change) can shape their own payload with
+// the same expiry, cooldown and delivery rules. `extraFields` carries whatever that change
+// needs parked alongside the code.
 const sendVerificationCodeFor = async ({ user, target, email, extraFields = {} }) => {
   const pending = await EmailVerification.findOne({ user: user._id });
   // A failed delivery never costs the user a wait: there is no code in their inbox to sit out.
@@ -630,8 +542,8 @@ const removeRecoveryEmail = asyncHandler(async (req, res) => {
   return res.status(200).json({ success: true, data: { message: 'Recovery email removed.', user: toSafeUser(user) } });
 });
 
-// Applies whichever pending code the account holds: activation, a new primary address, or
-// a new recovery address.
+// Applies whichever pending code the account holds: a new primary address, a new recovery
+// address, or a new password.
 const confirmVerificationCode = asyncHandler(async (req, res) => {
   const body = readRequestBody(req, res, ['code']);
   if (!body) return undefined;
@@ -644,16 +556,11 @@ const confirmVerificationCode = asyncHandler(async (req, res) => {
   const user = await User.findById(req.user._id);
   const pending = await EmailVerification.findOne({ user: user._id });
   if (!pending) {
-    return res.status(400).json({
-      success: false,
-      message: user.emailVerified === false
-        ? 'There is no code waiting. Request a new one to activate your account.'
-        : 'There is no email change waiting. Start again with the new address.',
-    });
+    return res.status(400).json({ success: false, message: 'There is no email change waiting. Start again with the new address.' });
   }
 
   // A failed send leaves a deliberately dead record: there is no code to check, and the
-  // record stays so the verification screen keeps explaining what happened.
+  // record stays so the change form can explain what happened.
   if (pending.deliveryFailed) {
     return res.status(400).json({
       success: false,
@@ -675,22 +582,6 @@ const confirmVerificationCode = asyncHandler(async (req, res) => {
     pending.attempts += 1;
     await pending.save();
     return res.status(400).json({ success: false, message: 'That code is not correct. Check the email and try again.' });
-  }
-
-  if (pending.target === 'registration') {
-    // The address on the account must still be the one that was coded.
-    if (pending.pendingEmail !== user.email) {
-      await EmailVerification.deleteOne({ _id: pending._id });
-      return res.status(400).json({ success: false, message: 'Your email address changed. Request a new code to activate your account.' });
-    }
-
-    user.emailVerified = true;
-    await user.save();
-    await EmailVerification.deleteOne({ _id: pending._id });
-    // The account signs in from now on, so the activation ticket has done its job.
-    res.clearCookie('fams_verify', clearedCookieOptions(verificationCookieOptions()));
-
-    return res.status(200).json({ success: true, data: { message: 'Your email address is verified.', user: toSafeUser(user) } });
   }
 
   if (pending.target === 'password') {
@@ -720,6 +611,13 @@ const confirmVerificationCode = asyncHandler(async (req, res) => {
     await EmailVerification.deleteOne({ _id: pending._id });
 
     return res.status(200).json({ success: true, data: { message: 'Your recovery email has been updated.', user: toSafeUser(user) } });
+  }
+
+  // Only a primary-email change is left. A record left behind by the retired registration
+  // flow is dead weight, so drop it instead of applying it to the account.
+  if (pending.target !== 'email') {
+    await EmailVerification.deleteOne({ _id: pending._id });
+    return res.status(400).json({ success: false, message: 'There is no email change waiting. Start again with the new address.' });
   }
 
   const taken = await User.findOne({ email: pending.pendingEmail, _id: { $ne: user._id } });
@@ -771,14 +669,12 @@ const changePassword = asyncHandler(async (req, res) => {
 module.exports = {
   changePassword,
   confirmVerificationCode,
-  getEmailVerificationStatus,
   register,
   login,
   logout,
   me,
   removeRecoveryEmail,
   requestEmailChange,
-  requestEmailVerification,
   setRecoveryEmail,
   updateProfile,
   submitVerificationProfile,

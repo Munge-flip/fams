@@ -4,7 +4,6 @@ import { ProtectedRoute, PublicOnlyRoute } from './components/RouteGuards';
 import AdminLayout from './components/AdminLayout';
 import Login from './pages/auth/Login';
 import Register from './pages/auth/Register';
-import VerifyEmail from './pages/auth/VerifyEmail';
 import Dashboard from './pages/dashboard/Dashboard';
 import Programs from './pages/programs/Programs';
 import Apply from './pages/apply/Apply';
@@ -28,9 +27,6 @@ export default function App() {
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
       </Route>
-      {/* Reached right after registering and whenever a sign-in is refused, before any
-          session exists: the page runs on the activation ticket alone. */}
-      <Route path="/verify-email" element={<VerifyEmail />} />
       <Route element={<ProtectedRoute />}>
         <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/programs" element={<Programs />} />

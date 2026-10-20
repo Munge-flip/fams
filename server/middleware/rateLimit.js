@@ -92,9 +92,9 @@ const registerLimiter = createLimiter({
   message: 'Too many registration attempts. Please try again later.',
 });
 
-// Every endpoint that mails a 6-digit code shares one counter, so cycling through activation
-// resend, email change, recovery email and password change cannot buy extra sends. Ten an hour
-// leaves room for the resends a mistyped address legitimately needs.
+// Every endpoint that mails a 6-digit code shares one counter, so cycling through email change,
+// recovery email and password change cannot buy extra sends. Ten an hour leaves room for the
+// resends a mistyped address legitimately needs.
 const verificationCodeRequestLimiter = createLimiter({
   windowMs: ONE_HOUR,
   limit: 10,

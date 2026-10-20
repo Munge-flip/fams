@@ -45,18 +45,7 @@ export const requestEmailChange = async (data) => {
   return response.data;
 };
 
-export const requestEmailVerification = async () => {
-  const response = await api.post('/auth/email-verification/request');
-  return response.data;
-};
-
-export const getEmailVerificationStatus = async () => {
-  const response = await api.get('/auth/email-verification');
-  return response.data;
-};
-
-// Confirms any pending code: account activation, a new primary address, a new recovery
-// address, or a new password.
+// Confirms any pending code: a new primary address, a new recovery address, or a new password.
 export const confirmVerificationCode = async (data) => {
   const response = await api.post('/auth/verification/confirm', data);
   return response.data;

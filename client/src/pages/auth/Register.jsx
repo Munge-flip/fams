@@ -79,9 +79,8 @@ export default function Register() {
     try {
       await register(buildPayload());
 
-      // A fresh beneficiary account cannot sign in yet: registration sets the activation
-      // session, and the code step continues from it.
-      navigate('/verify-email', { replace: true, state: { email: form.email.trim() } });
+      // Registration signs the account in immediately; there is no email code step.
+      navigate('/dashboard', { replace: true });
     } catch (requestError) {
       setError(requestError.message);
     } finally {

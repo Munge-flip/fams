@@ -10,8 +10,7 @@ function LoadingScreen() {
 }
 
 // Where an authenticated visitor belongs: admins to their portal, everyone else to the
-// dashboard. Only confirmed accounts can hold a session, so there is no unconfirmed case
-// left to route around.
+// dashboard.
 const destinationFor = (user) => (user.role === 'admin' ? '/admin' : '/dashboard');
 
 export function PublicOnlyRoute() {
