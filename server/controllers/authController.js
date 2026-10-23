@@ -33,6 +33,21 @@ const toSafeUser = (user) => {
   return safeUser;
 };
 
+// Only the Capacitor app asks for a body token. Web and admin requests omit the marker, so
+// their response body keeps its existing shape and the JWT remains confined to the httpOnly
+// cookie. The cookie is still set for native requests; the body token is what the WebView uses.
+const isNativeClient = (req) => req.get('X-Client-Platform') === 'capacitor';
+
+const sessionResponse = (req, res, status, user, token) => {
+  const body = { success: true, data: toSafeUser(user) };
+
+  if (isNativeClient(req)) {
+    body.token = token;
+  }
+
+  return res.status(status).json(body);
+};
+
 const validateRegistration = (body) => {
   if (!body || typeof body !== 'object' || Array.isArray(body)) {
     return 'A JSON object is required.';
@@ -110,9 +125,10 @@ const register = asyncHandler(async (req, res) => {
 
   // Registration is complete on its own: the account is active and signs in immediately, with
   // no email confirmation step and no dependency on mail delivery.
-  res.cookie('fams_token', createToken(user), cookieOptions());
+  const token = createToken(user);
+  res.cookie('fams_token', token, cookieOptions());
 
-  return res.status(201).json({ success: true, data: toSafeUser(user) });
+  return sessionResponse(req, res, 201, user, token);
 });
 
 const login = asyncHandler(async (req, res) => {
@@ -141,7 +157,7 @@ const login = asyncHandler(async (req, res) => {
 
   const token = createToken(user);
   res.cookie('fams_token', token, cookieOptions());
-  return res.status(200).json({ success: true, data: toSafeUser(user) });
+  return sessionResponse(req, res, 200, user, token);
 });
 
 const logout = (req, res) => {

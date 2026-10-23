@@ -5,6 +5,8 @@ node_modules/
 .env
 .env.*
 !.env.example
+# Build-time API URL for the Capacitor bundle; deliberately committed (not a secret).
+!.env.mobile
 
 # Build output and tooling caches
 client/dist/

@@ -2,11 +2,32 @@ const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 const asyncHandler = require('../utils/asyncHandler');
 
+// The web client authenticates with the httpOnly cookie. The Capacitor app cannot rely on a
+// cross-site cookie inside the Android WebView, so it sends the same JWT as a bearer token.
+// When both are present the header wins, which keeps an explicit native credential from being
+// silently ignored in favour of a stale cookie.
+const readToken = (req) => {
+  const authorization = req.headers.authorization;
+
+  if (authorization) {
+    const match = /^Bearer\s+(.+)$/i.exec(authorization.trim());
+    return match ? match[1].trim() : null;
+  }
+
+  return req.cookies.fams_token;
+};
+
 const protect = asyncHandler(async (req, res, next) => {
-  const token = req.cookies.fams_token;
+  const token = readToken(req);
 
   if (!token) {
-    return res.status(401).json({ success: false, message: 'Authentication is required.' });
+    // No credential at all keeps today's message. A header that is present but is not a
+    // usable bearer credential is an authentication failure, like any other bad token.
+    const message = req.headers.authorization
+      ? 'Authentication token is invalid or expired.'
+      : 'Authentication is required.';
+
+    return res.status(401).json({ success: false, message });
   }
 
   if (!process.env.JWT_SECRET) {
